@@ -1,18 +1,12 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 package core.model;
 
 import core.model.Book;
 import core.model.Author;
+import core.model.interfaces.Printable;
 import java.util.ArrayList;
 
-/**
- *
- * @author edangulo
- */
-public class PrintedBook extends Book {
+public class PrintedBook extends Book implements Printable {
     
     private int pages;
     private int copies;
@@ -22,11 +16,11 @@ public class PrintedBook extends Book {
         this.pages = pages;
         this.copies = copies;
     }
-
+    @Override
     public int getPages() {
         return pages;
     }
-
+    @Override
     public int getCopies() {
         return copies;
     }

@@ -43,5 +43,36 @@ public class MegaferiaController {
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Autor " + firstName + " registrado exitosamente.", newAuthor);
     }
     
+    public ServiceResponse<Manager> registerManager(String id, String firstName, String lastName) {
+        // --- A. Validación de Entrada ---
+        if (id == null || id.isEmpty() || firstName == null || firstName.isEmpty() || lastName == null || lastName.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Gerente son obligatorios.");
+        }
+
+        // --- B. Validación de Lógica de Negocio (Unicidad) ---
+        // Debes verificar la unicidad del ID en el storage de Managers
+        boolean exists = storage.getManagers().stream()
+                .anyMatch(m -> m.getId().equals(Long.parseLong(id))); // Usamos Long.parseLong ya que Manager usa long.
+
+        if (exists) {
+            return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un Gerente registrado con el ID: " + id);
+        }
+
+        // --- C. Creación y Persistencia ---
+        // Convertir ID a long
+        long managerId;
+        try {
+            managerId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID debe ser un número válido.");
+        }
+        
+        Manager newManager = new Manager(managerId, firstName, lastName);
+        storage.getManagers().add(newManager); 
+
+        // --- D. Respuesta Exitosa ---
+        return new ServiceResponse<>(ResponseCodes.SUCCESS, "Gerente " + firstName + " registrado exitosamente.", newManager);
+    }
+    
     // ... Aquí se agregarán más métodos: registerManager, registerBook, buyStand, etc.
 }

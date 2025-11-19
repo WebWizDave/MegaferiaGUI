@@ -1,13 +1,10 @@
 
 package core.model;
 
+import core.model.interfaces.Audible;
 import java.util.ArrayList;
 
-/**
- *
- * @author edangulo
- */
-public class Audiobook extends Book {
+public class Audiobook extends Book implements Audible {
     
     private int duration;
     private Narrator narrador;
@@ -19,13 +16,14 @@ public class Audiobook extends Book {
         
         this.narrador.addBook(this);
     }
-
+    @Override
     public int getDuration() {
         return duration;
     }
 
-    public Narrator getNarrador() {
+    @Override
+    public Narrator getNarrator() {
         return narrador;
-    }
+    }   
     
 }
