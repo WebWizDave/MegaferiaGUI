@@ -14,6 +14,7 @@ import com.formdev.flatlaf.FlatDarkLaf;
 import java.util.ArrayList;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableModel;
+import core.controller.MegaferiaController;
 
 /**
  *
@@ -21,11 +22,13 @@ import javax.swing.table.DefaultTableModel;
  * @author edangulo
  */
 public class MegaferiaFrame extends javax.swing.JFrame {
-
+    
+    private MegaferiaController controller;
     /**
      * Creates new form MegaferiaFrame
      */
-    public MegaferiaFrame() {
+    public MegaferiaFrame(MegaferiaController controller) {
+        this.controller = controller;
         initComponents();
         setLocationRelativeTo(null);
 
