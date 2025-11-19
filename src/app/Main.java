@@ -1,14 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 package app;
 
 import core.view.MegaferiaFrame; // Importa la clase de la vista
-/**
- *
- * @author david
- */
+
 public class Main {
     public static void main(String[] args) {
         // inicializar el tema gráfico de la interfaz (FlatDarkLaf)
