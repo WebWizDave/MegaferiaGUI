@@ -1,15 +1,12 @@
 
 package core.model.storage;
 
-/**
- *
- * @author david
- */
+
 import java.util.ArrayList;
 import core.model.*; // Importa todas las clases del modelo
 
 // Esta clase es un Singleton para centralizar el almacenamiento
-public class MegaferiaStorage {
+public class MegaferiaStorage implements StorageService {
     // 1. Instancia estática (la única que existirá)
     private static MegaferiaStorage instance;
 
