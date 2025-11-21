@@ -1,6 +1,7 @@
 
 package core.controller.utils;
 
-public class Observer {
+public interface Observer {
+    
     void update();
 }

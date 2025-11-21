@@ -28,22 +28,34 @@ public class MegaferiaController implements Observable {
             return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Autor son obligatorios.");
         }
 
+        // Validar y parsear el ID de String a long (asumiendo que Author.id es long)
+        long authorId;
+        try {
+            authorId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID del Autor debe ser un número válido.");
+        }
+
         // --- B. Validación de Lógica de Negocio (Unicidad) ---
-        // Revisar si ya existe un autor con ese ID
         boolean exists = storage.getAuthors().stream()
-                .anyMatch(a -> a.getId().equals(id));
+            // CORRECCIÓN 1: Comparamos el long (authorId) con el long de la clase (a.getId())
+            .anyMatch(a -> a.getId() == authorId); 
 
         if (exists) {
             return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un Autor registrado con el ID: " + id);
         }
 
         // --- C. Creación y Persistencia (Llama al Modelo) ---
-        
-        // El constructor de Author debe estar en model/Author.java
-        Author newAuthor = new Author(id, firstName, lastName, new ArrayList<>());
+
+        // CORRECCIÓN 2: El constructor ahora solo toma los parámetros directos, sin la lista vacía.
+        // Asumiendo la firma: new Author(long id, String firstName, String lastName)
+        Author newAuthor = new Author(authorId, firstName, lastName); 
+
         storage.getAuthors().add(newAuthor); // Persistencia simple
 
         // --- D. Respuesta Exitosa ---
+        // NOTA: Recuerda llamar a notifyObservers() aquí si el registro es exitoso.
+        notifyObservers();
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Autor " + firstName + " registrado exitosamente.", newAuthor);
     }
     
@@ -53,244 +65,246 @@ public class MegaferiaController implements Observable {
             return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Gerente son obligatorios.");
         }
 
+        // Validar y parsear el ID de String a long
+        long managerId;
+        try {
+            managerId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID del Gerente debe ser un número válido.");
+        }
+
         // --- B. Validación de Lógica de Negocio (Unicidad) ---
-        // Debes verificar la unicidad del ID en el storage de Managers
         boolean exists = storage.getManagers().stream()
-                .anyMatch(m -> m.getId().equals(Long.parseLong(id))); // Usamos Long.parseLong ya que Manager usa long.
+            // CORRECCIÓN 3: Cambiamos .equals() por == (asumiendo que m.getId() retorna un long primitivo)
+            .anyMatch(m -> m.getId() == managerId); 
 
         if (exists) {
             return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un Gerente registrado con el ID: " + id);
         }
 
         // --- C. Creación y Persistencia ---
-        // Convertir ID a long
-        long managerId;
-        try {
-            managerId = Long.parseLong(id);
-        } catch (NumberFormatException e) {
-            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID debe ser un número válido.");
-        }
-        
-        Manager newManager = new Manager(managerId, firstName, lastName);
+        // El constructor de Manager debe recibir el ID como long
+        Manager newManager = new Manager(managerId, firstName, lastName); // Asumiendo el constructor corregido
         storage.getManagers().add(newManager); 
 
         // --- D. Respuesta Exitosa ---
+        notifyObservers();
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Gerente " + firstName + " registrado exitosamente.", newManager);
     }
     
     public ServiceResponse<Narrator> registerNarrator(String id, String firstName, String lastName) {
-    // --- A. Validación de Entrada ---
-    if (id == null || id.isEmpty() || firstName == null || firstName.isEmpty() || lastName == null || lastName.isEmpty()) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Narrador son obligatorios.");
-    }
+        // --- A. Validación de Entrada ---
+        if (id == null || id.isEmpty() || firstName == null || firstName.isEmpty() || lastName == null || lastName.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Narrador son obligatorios.");
+        }
 
-    // --- B. Validación de Lógica de Negocio (Unicidad) ---
-    // Chequear si el ID ya existe en el storage de Narrators
-    boolean exists = storage.getNarrators().stream()
-            .anyMatch(n -> Long.toString(n.getId()).equals(id));
+        // --- B. Validación de Lógica de Negocio (Unicidad) ---
+        // Chequear si el ID ya existe en el storage de Narrators
+        boolean exists = storage.getNarrators().stream()
+                .anyMatch(n -> Long.toString(n.getId()).equals(id));
 
-    if (exists) {
-        return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un Narrador registrado con el ID: " + id);
-    }
+        if (exists) {
+            return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un Narrador registrado con el ID: " + id);
+        }
 
-    // --- C. Creación y Persistencia ---
-    long narratorId;
-    try {
-        narratorId = Long.parseLong(id);
-    } catch (NumberFormatException e) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID debe ser un número válido.");
-    }
-    
-    Narrator newNarrator = new Narrator(narratorId, firstName, lastName);
-    storage.getNarrators().add(newNarrator); 
+        // --- C. Creación y Persistencia ---
+        long narratorId;
+        try {
+            narratorId = Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID debe ser un número válido.");
+        }
 
-    // --- D. Respuesta Exitosa ---
-    return new ServiceResponse<>(ResponseCodes.SUCCESS, "Narrador " + firstName + " registrado exitosamente.", newNarrator);
-    }
+        Narrator newNarrator = new Narrator(narratorId, firstName, lastName);
+        storage.getNarrators().add(newNarrator); 
+
+        // --- D. Respuesta Exitosa ---
+        return new ServiceResponse<>(ResponseCodes.SUCCESS, "Narrador " + firstName + " registrado exitosamente.", newNarrator);
+        }
     
     public ServiceResponse<Stand> registerStand(String id, String price) {
-    // --- A. Validación de Entrada ---
-    if (id == null || id.isEmpty() || price == null || price.isEmpty()) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID y el Precio del Stand son obligatorios.");
-    }
+        // --- A. Validación de Entrada ---
+        if (id == null || id.isEmpty() || price == null || price.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID y el Precio del Stand son obligatorios.");
+        }
 
-    // --- B. Validación de Lógica de Negocio (Unicidad) ---
-    // Chequear si el ID ya existe en el storage de Stands
-    boolean exists = storage.getStands().stream()
-            .anyMatch(s -> Long.toString(s.getId()).equals(id));
+        // --- B. Validación de Lógica de Negocio (Unicidad) ---
+        // Chequear si el ID ya existe en el storage de Stands
+        boolean exists = storage.getStands().stream()
+                .anyMatch(s -> Long.toString(s.getId()).equals(id));
 
-    if (exists) {
-        return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un Stand registrado con el ID: " + id);
-    }
+        if (exists) {
+            return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un Stand registrado con el ID: " + id);
+        }
 
-    // --- C. Creación y Persistencia ---
-    long standId;
-    double standPrice;
-    try {
-        standId = Long.parseLong(id);
-        standPrice = Double.parseDouble(price);
-    } catch (NumberFormatException e) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID y el Precio deben ser números válidos.");
-    }
-    
-    Stand newStand = new Stand(standId, standPrice);
-    storage.getStands().add(newStand);
+        // --- C. Creación y Persistencia ---
+        long standId;
+        double standPrice;
+        try {
+            standId = Long.parseLong(id);
+            standPrice = Double.parseDouble(price);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID y el Precio deben ser números válidos.");
+        }
 
-    // --- D. Respuesta Exitosa ---
-    return new ServiceResponse<>(ResponseCodes.SUCCESS, "Stand N° " + standId + " registrado exitosamente.", newStand);
-    }
+        Stand newStand = new Stand(standId, standPrice);
+        storage.getStands().add(newStand);
+
+        // --- D. Respuesta Exitosa ---
+        return new ServiceResponse<>(ResponseCodes.SUCCESS, "Stand N° " + standId + " registrado exitosamente.", newStand);
+        }
     
     
     public ServiceResponse<Publisher> registerPublisher(String nit, String name, String address, String managerIdString) {
-    // --- A. Validación de Entrada ---
-    if (nit.isEmpty() || name.isEmpty() || address.isEmpty() || managerIdString == null || managerIdString.isEmpty()) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Editorial y la asignación del Gerente son obligatorios.");
-    }
-    
-    // --- B. Búsqueda y Validación del Gerente ---
-    Manager manager = null;
-    try {
-        long managerId = Long.parseLong(managerIdString);
-        // El Manager debe existir en la lista de Managers del Storage
-        manager = storage.getManagers().stream()
-                .filter(m -> m.getId() == managerId)
-                .findFirst()
-                .orElse(null);
-    } catch (NumberFormatException e) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID del Gerente no es válido.");
-    }
+        // --- A. Validación de Entrada ---
+        if (nit.isEmpty() || name.isEmpty() || address.isEmpty() || managerIdString == null || managerIdString.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Editorial y la asignación del Gerente son obligatorios.");
+        }
 
-    if (manager == null) {
-        return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "El Gerente con ID " + managerIdString + " no fue encontrado. Regístrelo primero.");
-    }
+        // --- B. Búsqueda y Validación del Gerente ---
+        Manager manager = null;
+        try {
+            long managerId = Long.parseLong(managerIdString);
+            // El Manager debe existir en la lista de Managers del Storage
+            manager = storage.getManagers().stream()
+                    .filter(m -> m.getId() == managerId)
+                    .findFirst()
+                    .orElse(null);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID del Gerente no es válido.");
+        }
 
-    // --- C. Validación de Lógica de Negocio (Unicidad del NIT) ---
-    boolean nitExists = storage.getPublishers().stream()
-            .anyMatch(p -> p.getNit().equals(nit));
+        if (manager == null) {
+            return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "El Gerente con ID " + managerIdString + " no fue encontrado. Regístrelo primero.");
+        }
 
-    if (nitExists) {
-        return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe una Editorial registrada con el NIT: " + nit);
-    }
+        // --- C. Validación de Lógica de Negocio (Unicidad del NIT) ---
+        boolean nitExists = storage.getPublishers().stream()
+                .anyMatch(p -> p.getNit().equals(nit));
 
-    // --- D. Creación y Persistencia ---
-    Publisher newPublisher = new Publisher(nit, name, address, manager);
-    storage.getPublishers().add(newPublisher);
+        if (nitExists) {
+            return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe una Editorial registrada con el NIT: " + nit);
+        }
 
-    // --- E. Respuesta Exitosa ---
-    return new ServiceResponse<>(ResponseCodes.SUCCESS, "Editorial " + name + " registrada exitosamente.", newPublisher);
-    }
+        // --- D. Creación y Persistencia ---
+        Publisher newPublisher = new Publisher(nit, name, address, manager);
+        storage.getPublishers().add(newPublisher);
+
+        // --- E. Respuesta Exitosa ---
+        return new ServiceResponse<>(ResponseCodes.SUCCESS, "Editorial " + name + " registrada exitosamente.", newPublisher);
+        }
     
     public ServiceResponse<Book> registerBook(
-    String title, String authorIdsString, String isbn, String genre, 
-    String valueString, String publisherNit, String bookType, 
-    String pagesString, String copiesString, String hyperlink, 
-    String durationString, String narratorIdString) 
-{
-    // --- A. Validaciones Iniciales Comunes ---
-    if (title.isEmpty() || authorIdsString.isEmpty() || isbn.isEmpty() || genre.isEmpty() || valueString.isEmpty() || publisherNit.isEmpty()) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Los campos principales (Título, Autores, ISBN, Género, Valor, Editorial) son obligatorios.");
-    }
-    
-    // --- B. Conversión y Búsqueda de Objetos ---
-    
-    // 1. Valor (Value)
-    double value;
-    try {
-        value = Double.parseDouble(valueString);
-    } catch (NumberFormatException e) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Valor del libro debe ser un número válido.");
-    }
-    
-    // 2. Editorial (Publisher)
-    Publisher publisher = storage.getPublishers().stream()
-        .filter(p -> p.getNit().equals(publisherNit))
-        .findFirst().orElse(null);
-    
-    if (publisher == null) {
-        return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Editorial no encontrada. Por favor, regístrela primero.");
-    }
-    
-    // 3. Autores (Authors)
-    ArrayList<Author> authors = new ArrayList<>();
-    String[] authorIds = authorIdsString.split("\\n"); // Separa IDs por nueva línea
-    if (authorIds.length == 0) {
-        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Debe agregar al menos un autor.");
-    }
-
-    for (String id : authorIds) {
-        Author author = storage.getAuthors().stream()
-            .filter(a -> Long.toString(a.getId()).equals(id.trim()))
-            .findFirst().orElse(null);
-        
-        if (author == null) {
-            return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Autor con ID: " + id.trim() + " no encontrado.");
+        String title, String authorIdsString, String isbn, String genre, 
+        String valueString, String publisherNit, String bookType, 
+        String pagesString, String copiesString, String hyperlink, 
+        String durationString, String narratorIdString) 
+        {
+        // --- A. Validaciones Iniciales Comunes ---
+        if (title.isEmpty() || authorIdsString.isEmpty() || isbn.isEmpty() || genre.isEmpty() || valueString.isEmpty() || publisherNit.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Los campos principales (Título, Autores, ISBN, Género, Valor, Editorial) son obligatorios.");
         }
-        authors.add(author);
-    }
-    
-    // 4. Validación de Unicidad de ISBN
-    boolean isbnExists = storage.getBooks().stream()
-        .anyMatch(b -> b.getIsbn().equals(isbn));
-    if (isbnExists) {
-        return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un libro registrado con el ISBN: " + isbn);
-    }
 
-    // --- C. Creación Polimórfica (Switch por Tipo de Libro) ---
-    Book newBook = null;
+        // --- B. Conversión y Búsqueda de Objetos ---
 
-    switch (bookType) {
-        case "IMPRESO":
-            int pages, copies;
-            try {
-                pages = Integer.parseInt(pagesString);
-                copies = Integer.parseInt(copiesString);
-            } catch (NumberFormatException e) {
-                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Páginas y Copias deben ser números enteros.");
-            }
-            newBook = new PrintedBook(title, authors, isbn, genre, bookType, value, publisher, pages, copies);
-            break;
+        // 1. Valor (Value)
+        double value;
+        try {
+            value = Double.parseDouble(valueString);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Valor del libro debe ser un número válido.");
+        }
 
-        case "DIGITAL":
-            if (hyperlink.isEmpty()) {
-                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Hipervínculo es obligatorio para Libros Digitales.");
-            }
-            newBook = new DigitalBook(title, authors, isbn, genre, bookType, value, publisher, hyperlink);
-            break;
+        // 2. Editorial (Publisher)
+        Publisher publisher = storage.getPublishers().stream()
+            .filter(p -> p.getNit().equals(publisherNit))
+            .findFirst().orElse(null);
 
-        case "AUDIO":
-            int duration;
-            try {
-                duration = Integer.parseInt(durationString);
-            } catch (NumberFormatException e) {
-                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "La Duración debe ser un número entero (minutos).");
-            }
-            
-            // Buscar Narrador
-            Narrator narrator = null;
-            try {
-                long narratorId = Long.parseLong(narratorIdString);
-                narrator = storage.getNarrators().stream()
-                    .filter(n -> n.getId() == narratorId)
-                    .findFirst().orElse(null);
-            } catch (NumberFormatException e) {
-                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID del Narrador no es válido.");
-            }
-            
-            if (narrator == null) {
-                return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Narrador no encontrado. Por favor, regístrelo primero.");
-            }
-            
-            newBook = new Audiobook(title, authors, isbn, genre, bookType, value, publisher, duration, narrator);
-            break;
+        if (publisher == null) {
+            return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Editorial no encontrada. Por favor, regístrela primero.");
+        }
 
-        default:
-            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Tipo de libro no válido.");
-    }
-    
-    // --- D. Persistencia y Respuesta Final ---
-    storage.getBooks().add(newBook);
-    return new ServiceResponse<>(ResponseCodes.SUCCESS, "Libro '" + title + "' registrado exitosamente como " + bookType + ".", newBook);
-    }
+        // 3. Autores (Authors)
+        ArrayList<Author> authors = new ArrayList<>();
+        String[] authorIds = authorIdsString.split("\\n"); // Separa IDs por nueva línea
+        if (authorIds.length == 0) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Debe agregar al menos un autor.");
+        }
+
+        for (String id : authorIds) {
+            Author author = storage.getAuthors().stream()
+                .filter(a -> Long.toString(a.getId()).equals(id.trim()))
+                .findFirst().orElse(null);
+
+            if (author == null) {
+                return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Autor con ID: " + id.trim() + " no encontrado.");
+            }
+            authors.add(author);
+        }
+
+        // 4. Validación de Unicidad de ISBN
+        boolean isbnExists = storage.getBooks().stream()
+            .anyMatch(b -> b.getIsbn().equals(isbn));
+        if (isbnExists) {
+            return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un libro registrado con el ISBN: " + isbn);
+        }
+
+        // --- C. Creación Polimórfica (Switch por Tipo de Libro) ---
+        Book newBook = null;
+
+        switch (bookType) {
+            case "IMPRESO":
+                int pages, copies;
+                try {
+                    pages = Integer.parseInt(pagesString);
+                    copies = Integer.parseInt(copiesString);
+                } catch (NumberFormatException e) {
+                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Páginas y Copias deben ser números enteros.");
+                }
+                newBook = new PrintedBook(title, authors, isbn, genre, bookType, value, publisher, pages, copies);
+                break;
+
+            case "DIGITAL":
+                if (hyperlink.isEmpty()) {
+                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Hipervínculo es obligatorio para Libros Digitales.");
+                }
+                newBook = new DigitalBook(title, authors, isbn, genre, bookType, value, publisher, hyperlink);
+                break;
+
+            case "AUDIO":
+                int duration;
+                try {
+                    duration = Integer.parseInt(durationString);
+                } catch (NumberFormatException e) {
+                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "La Duración debe ser un número entero (minutos).");
+                }
+
+                // Buscar Narrador
+                Narrator narrator = null;
+                try {
+                    long narratorId = Long.parseLong(narratorIdString);
+                    narrator = storage.getNarrators().stream()
+                        .filter(n -> n.getId() == narratorId)
+                        .findFirst().orElse(null);
+                } catch (NumberFormatException e) {
+                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID del Narrador no es válido.");
+                }
+
+                if (narrator == null) {
+                    return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Narrador no encontrado. Por favor, regístrelo primero.");
+                }
+
+                newBook = new Audiobook(title, authors, isbn, genre, bookType, value, publisher, duration, narrator);
+                break;
+
+            default:
+                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Tipo de libro no válido.");
+        }
+
+        // --- D. Persistencia y Respuesta Final ---
+        storage.getBooks().add(newBook);
+        return new ServiceResponse<>(ResponseCodes.SUCCESS, "Libro '" + title + "' registrado exitosamente como " + bookType + ".", newBook);
+        }
     
     
     // Búsqueda de libros por autor
@@ -338,8 +352,9 @@ public class MegaferiaController implements Observable {
 
     public ServiceResponse<Publisher> assignStandsToPublisher(String publisherNit, List<Long> standIds) {
         // --- A. Validación y Búsqueda de Editorial ---
-        Publisher publisher = storage.getPublishers().stream()
-                // ... (validación de Publisher - IGUAL)
+        Publisher publisher = storage.getPublishers().stream().filter(p -> p.getNit().equals(publisherNit))
+        .findFirst().orElse(null); // Retorna null si no la encuentra
+                
 
         // --- B. Validación y Búsqueda de Stands (¡SIMPLIFICADA!) ---
 
@@ -374,7 +389,7 @@ public class MegaferiaController implements Observable {
             stand.addPublisher(publisher); 
 
             // 2. Asigna el Stand a la Editorial 
-            publisher.getStands().add(stand); 
+            publisher.addStand(stand);
         }
 
         double totalCost = standsToAssign.stream().mapToDouble(Stand::getPrice).sum();
@@ -456,17 +471,19 @@ public class MegaferiaController implements Observable {
     // Metodos de la interfaz Observable
     @Override
     public void addObserver(Observer observer) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        this.observers.add(observer);
     }
 
     @Override
     public void removeObserver(Observer observer) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        this.observers.remove(observer);
     }
 
     @Override
     public void notifyObservers() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        for (Observer observer : this.observers) {
+            observer.update(); // Llama al método update() sin argumentos
+        }
     }
 
     

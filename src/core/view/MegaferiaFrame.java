@@ -1,15 +1,7 @@
 
 package core.view;
 
-import core.model.Stand;
-import core.model.Publisher;
-import core.model.PrintedBook;
-import core.model.Narrator;
-import core.model.Manager;
-import core.model.DigitalBook;
-import core.model.Book;
-import core.model.Author;
-import core.model.Audiobook;
+import core.model.*;
 import com.formdev.flatlaf.FlatDarkLaf;
 import java.util.ArrayList;
 import javax.swing.UIManager;
@@ -18,8 +10,8 @@ import core.controller.MegaferiaController;
 import core.controller.ServiceResponse;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
+import core.controller.utils.Observer;
+import core.controller.utils.Observable;
 import java.util.stream.Collectors;
 import javax.swing.JOptionPane;
 
@@ -43,77 +35,96 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     }
     
     private void loadComboBoxes() {
-    // 1. Limpiar todos los ComboBoxes clave
-    cmbManagerReg.removeAllItems();
-    cmbPublisherBookReg.removeAllItems();
-    cmbPublisherStandAssign.removeAllItems();
-    cmbNarratorReg.removeAllItems();
-    cmbStandIDSelect.removeAllItems();
-    cmbBookAuthorSelect.removeAllItems();
-    cmbAuthorSearch.removeAllItems();
-    
-    // 2. Llenar con datos frescos
-    
-    // Gerentes (cmbManagerReg)
-    controller.getManagers().forEach(m -> cmbManagerReg.addItem(m.getId() + " - " + m.getFullname()));
+        // 1. Limpiar todos los ComboBoxes clave
+        cmbManagerReg.removeAllItems();
+        cmbPublisherBookReg.removeAllItems();
+        cmbPublisherStandAssign.removeAllItems();
+        cmbNarratorReg.removeAllItems();
+        cmbStandIDSelect.removeAllItems();
+        cmbBookAuthorSelect.removeAllItems();
+        cmbAuthorSearch.removeAllItems();
 
-    // Editoriales (cmbPublisherBookReg, cmbPublisherStandAssign)
-    controller.getPublishers().forEach(p -> {
-        String item = p.getNit() + " - " + p.getName();
-        cmbPublisherBookReg.addItem(item);
-        cmbPublisherStandAssign.addItem(item);
-    });
-    
-    // Autores (cmbBookAuthorSelect, cmbAuthorSearch)
-    controller.getAuthors().forEach(a -> {
-        String item = a.getId() + " - " + a.getFullname();
-        cmbBookAuthorSelect.addItem(item);
-        cmbAuthorSearch.addItem(item);
-    });
-    
-    // Narradores (cmbNarratorReg)
-    controller.getNarrators().forEach(n -> cmbNarratorReg.addItem(n.getId() + " - " + n.getFullname()));
-    
-    // Stands (cmbStandIDSelect - para el carrito)
-    controller.getStands().forEach(s -> cmbStandIDSelect.addItem(String.valueOf(s.getId())));
-    }
+        // 2. Llenar con datos frescos
+
+        // Gerentes (cmbManagerReg)
+        controller.getManagers().forEach(m -> cmbManagerReg.addItem(m.getId() + " - " + m.getFullname()));
+
+        // Editoriales (cmbPublisherBookReg, cmbPublisherStandAssign)
+        controller.getPublishers().forEach(p -> {
+            String item = p.getNit() + " - " + p.getName();
+            cmbPublisherBookReg.addItem(item);
+            cmbPublisherStandAssign.addItem(item);
+        });
+
+        // Autores (cmbBookAuthorSelect, cmbAuthorSearch)
+        controller.getAuthors().forEach(a -> {
+            String item = a.getId() + " - " + a.getFullname();
+            cmbBookAuthorSelect.addItem(item);
+            cmbAuthorSearch.addItem(item);
+        });
+
+        // Narradores (cmbNarratorReg)
+        controller.getNarrators().forEach(n -> cmbNarratorReg.addItem(n.getId() + " - " + n.getFullname()));
+
+        // Stands (cmbStandIDSelect - para el carrito)
+        controller.getStands().forEach(s -> cmbStandIDSelect.addItem(String.valueOf(s.getId())));
+        }
     
     
     // Metodos helper loadTable
     private void loadPublishersTable() {
-    DefaultTableModel model = (DefaultTableModel) tblPublishers.getModel(); 
-    model.setRowCount(0); 
+        DefaultTableModel model = (DefaultTableModel) tblPublishers.getModel(); 
+        model.setRowCount(0); 
 
-    controller.getPublishers().forEach(p -> {
-        Object[] rowData = {
-            p.getNit(),
-            p.getName(),
-            p.getAddress(),
-            p.getManager().getFullname(),
-            p.getStands().size() 
-        };
-        model.addRow(rowData);
-    });
+        controller.getPublishers().forEach(p -> {
+            Object[] rowData = {
+                p.getNit(),
+                p.getName(),
+                p.getAddress(),
+                p.getManager().getFullname(),
+                p.getStandQuantity()
+            };
+            model.addRow(rowData);
+        });
     }
     
     private void loadPeopleTable() {
-    DefaultTableModel model = (DefaultTableModel) tblPeople.getModel(); 
-    model.setRowCount(0); 
+        DefaultTableModel model = (DefaultTableModel) tblPeople.getModel(); 
+        model.setRowCount(0); 
+        // Muestra Gerentes, Autores y Narradores en la misma tabla
+        // Gerentes (Tipo: Gerente, Editorial: Nombre de la Editorial que maneja, Nro. Libros: 0)
+        controller.getManagers().forEach(m -> {
+            String publisherName = m.getPublisher() != null ? m.getPublisher().getName() : "N/A";
+            model.addRow(new Object[]{
+                m.getId(), 
+                m.getFullname(), 
+                "Gerente", 
+                publisherName, // Editorial
+                0 // Nro. Libros
+            });
+        });
 
-    // Muestra Gerentes, Autores y Narradores en la misma tabla
-    
-    // Gerentes
-    controller.getManagers().forEach(m -> {
-        model.addRow(new Object[]{m.getId(), m.getFullname(), m.getAge(), "Gerente"});
-    });
-    // Autores
-    controller.getAuthors().forEach(a -> {
-        model.addRow(new Object[]{a.getId(), a.getFullname(), a.getAge(), "Autor"});
-    });
-    // Narradores
-    controller.getNarrators().forEach(n -> {
-        model.addRow(new Object[]{n.getId(), n.getFullname(), n.getAge(), "Narrador"});
-    });
+        // Autores (Tipo: Autor, Editorial: N/A, Nro. Libros: bookQuantity)
+        controller.getAuthors().forEach(a -> {
+            model.addRow(new Object[]{
+                a.getId(), 
+                a.getFullname(), 
+                "Autor", 
+                "N/A", // Editorial (El autor no está ligado a una sola)
+                a.getBookQuantity() // Nro. Libros
+            });
+        });
+
+        // Narradores (Tipo: Narrador, Editorial: N/A, Nro. Libros: bookQuantity)
+        controller.getNarrators().forEach(n -> {
+            model.addRow(new Object[]{
+                n.getId(), 
+                n.getFullname(), 
+                "Narrador", 
+                "N/A", // Editorial
+                n.getBookQuantity() // Nro. Libros
+            });
+        });
     }
     
     private void loadTopAuthorsTable() {
@@ -185,10 +196,9 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     }
     
     @Override
-    public void update(Observable o, Object arg) {
+    public void update() {
     // 1. Recargar todos los ComboBoxes (la parte más importante de la actualización)
     loadComboBoxes(); 
-    
     // 2. Recargar las Tablas de visualización principal
     loadPublishersTable(); 
     loadPeopleTable();   
@@ -1770,9 +1780,6 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     if (response.isSuccess()) {
         JOptionPane.showMessageDialog(this, response.getMessage(), "Registro Exitoso", JOptionPane.INFORMATION_MESSAGE);
         
-        // Tarea Pendiente: Limpiar todos los campos de registro de libros
-        // Tarea Pendiente: Actualizar tablas (Bloque 8)
-        
     } else {
         JOptionPane.showMessageDialog(this, response.getMessage(), "Error de Registro (" + response.getCode() + ")", JOptionPane.ERROR_MESSAGE);
     } 
@@ -1860,99 +1867,67 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
 
     private void btnLoadPublishersTableActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoadPublishersTableActionPerformed
         // TODO add your handling code here:
-        DefaultTableModel model = (DefaultTableModel) tblPublishers.getModel();
-        model.setRowCount(0);
-        for (Publisher publisher : this.publishers) {
-            model.addRow(new Object[]{publisher.getNit(), publisher.getName(), publisher.getAddress(), publisher.getManager().getFullname(), publisher.getStandQuantity()});
-        }
+        this.update();
     }//GEN-LAST:event_btnLoadPublishersTableActionPerformed
 
     private void btnLoadPeopleTableActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoadPeopleTableActionPerformed
         // TODO add your handling code here:
-        DefaultTableModel model = (DefaultTableModel) tblPeople.getModel();
-        model.setRowCount(0);
-        for (Author author : this.authors) {
-            model.addRow(new Object[]{author.getId(), author.getFullname(), "Autor", "-", author.getBookQuantity()});
-        }
-        for (Manager manager : this.managers) {
-            model.addRow(new Object[]{manager.getId(), manager.getFullname(), "Gerente", manager.getPublisher().getName(), 0});
-        }
-        for (Narrator narrator : this.narrators) {
-            model.addRow(new Object[]{narrator.getId(), narrator.getFullname(), "Narrador", "-", narrator.getBookQuantity()});
-        }
+        this.update();
     }//GEN-LAST:event_btnLoadPeopleTableActionPerformed
 
     private void btnLoadStandsTableActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoadStandsTableActionPerformed
         // TODO add your handling code here:
-        DefaultTableModel model = (DefaultTableModel) tblStands.getModel();
-        model.setRowCount(0);
-        for (Stand stand : this.stands) {
-            String publishers = "";
-            if (stand.getPublisherQuantity() > 0) {
-                publishers += stand.getPublishers().get(0).getName();
-                for (int i = 1; i < stand.getPublisherQuantity(); i++) {
-                    publishers += (", " + stand.getPublishers().get(i).getName());
-                }
-            }
-            model.addRow(new Object[]{stand.getId(), stand.getPrice(), stand.getPublisherQuantity() > 0 ? "Si" : "No", publishers});
-        }
+        this.update();
     }//GEN-LAST:event_btnLoadStandsTableActionPerformed
 
     private void btnSearchBooksByTypeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchBooksByTypeActionPerformed
         // TODO add your handling code here:
         String search = cmbBookSearch.getItemAt(cmbBookSearch.getSelectedIndex());
-        
+    
         DefaultTableModel model = (DefaultTableModel) tblBooks.getModel();
         model.setRowCount(0);
-        
-        if (search.equals("Libros Impresos")) {
-            for (Book book : this.books) {
-                if (book instanceof PrintedBook printedBook) {
-                    String authors = printedBook.getAuthors().get(0).getFullname();
-                    for (int i = 1; i < printedBook.getAuthors().size(); i++) {
-                        authors += (", " + printedBook.getAuthors().get(i).getFullname());
-                    }
-                    model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
-                }
+
+        // ERROR CORREGIDO: Usamos controller.getBooks()
+        for (Book book : controller.getBooks()) { // <-- CORREGIDO
+            if (search.equals("Libros Impresos") && book instanceof PrintedBook printedBook) {
+                // ... lógica de PrintedBook
+                 String authors = printedBook.getAuthors().get(0).getFullname();
+                 for (int i = 1; i < printedBook.getAuthors().size(); i++) {
+                     authors += (", " + printedBook.getAuthors().get(i).getFullname());
+                 }
+                 model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
             }
-        }
-        if (search.equals("Libros Digitales")) {
-            for (Book book : this.books) {
-                if (book instanceof DigitalBook digitalBook) {
-                    String authors = digitalBook.getAuthors().get(0).getFullname();
-                    for (int i = 1; i < digitalBook.getAuthors().size(); i++) {
-                        authors += (", " + digitalBook.getAuthors().get(i).getFullname());
-                    }
-                    model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
-                }
+            if (search.equals("Libros Digitales") && book instanceof DigitalBook digitalBook) {
+                // ... lógica de DigitalBook
+                 String authors = digitalBook.getAuthors().get(0).getFullname();
+                 for (int i = 1; i < digitalBook.getAuthors().size(); i++) {
+                     authors += (", " + digitalBook.getAuthors().get(i).getFullname());
+                 }
+                 model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
             }
-        }
-        if (search.equals("Audiolibros")) {
-            for (Book book : this.books) {
-                if (book instanceof Audiobook audiobook) {
-                    String authors = audiobook.getAuthors().get(0).getFullname();
-                    for (int i = 1; i < audiobook.getAuthors().size(); i++) {
-                        authors += (", " + audiobook.getAuthors().get(i).getFullname());
-                    }
-                    model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrador().getFullname(), audiobook.getDuration()});
-                }
+            if (search.equals("Audiolibros") && book instanceof Audiobook audiobook) {
+                // ... lógica de Audiobook
+                 String authors = audiobook.getAuthors().get(0).getFullname();
+                 for (int i = 1; i < audiobook.getAuthors().size(); i++) {
+                     authors += (", " + audiobook.getAuthors().get(i).getFullname());
+                 }
+                 model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrator().getFullname(), audiobook.getDuration()});
             }
-        }
-        if (search.equals("Todos los Libros")) {
-            for (Book book : this.books) { 
-                String authors = book.getAuthors().get(0).getFullname();
-                for (int i = 1; i < book.getAuthors().size(); i++) {
-                    authors += (", " + book.getAuthors().get(i).getFullname());
-                }
-                if (book instanceof PrintedBook printedBook) {
-                    model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
-                }
-                if (book instanceof DigitalBook digitalBook) {
-                    model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
-                }
-                if (book instanceof Audiobook audiobook) {
-                    model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrador().getFullname(), audiobook.getDuration()});
-                }
+            if (search.equals("Todos los Libros")) {
+                // ... lógica de Todos los Libros
+                 String authors = book.getAuthors().get(0).getFullname();
+                 for (int i = 1; i < book.getAuthors().size(); i++) {
+                     authors += (", " + book.getAuthors().get(i).getFullname());
+                 }
+                 if (book instanceof PrintedBook printedBook) {
+                     model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
+                 }
+                 if (book instanceof DigitalBook digitalBook) {
+                     model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
+                 }
+                 if (book instanceof Audiobook audiobook) {
+                     model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrator().getFullname(), audiobook.getDuration()});
+                 }
             }
         }
     }//GEN-LAST:event_btnSearchBooksByTypeActionPerformed
@@ -1961,43 +1936,22 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
         // TODO add your handling code here:
         String[] authorData = cmbAuthorSearch.getItemAt(cmbAuthorSearch.getSelectedIndex()).split(" - ");
         long authorId = Long.parseLong(authorData[0]);
-        
+
         Author author = null;
-        for (Author auth : this.authors) {
+        // ERROR CORREGIDO: Usamos controller.getAuthors()
+        for (Author auth : controller.getAuthors()) { // <-- CORREGIDO
             if (auth.getId() == authorId) {
                 author = auth;
+                break; // Se puede añadir 'break' para optimizar la búsqueda
             }
         }
-        
-        DefaultTableModel model = (DefaultTableModel) tblSearchResults.getModel();
-        model.setRowCount(0);
-        
-        for (Book book : author.getBooks()) { 
-            String authors = book.getAuthors().get(0).getFullname();
-            for (int i = 1; i < book.getAuthors().size(); i++) {
-                authors += (", " + book.getAuthors().get(i).getFullname());
-            }
-            if (book instanceof PrintedBook printedBook) {
-                model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
-            }
-            if (book instanceof DigitalBook digitalBook) {
-                model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
-            }
-            if (book instanceof Audiobook audiobook) {
-                model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrador().getFullname(), audiobook.getDuration()});
-            }
-        }
-    }//GEN-LAST:event_btnSearchBooksByAuthorActionPerformed
 
-    private void btnSearchBooksByFormatActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchBooksByFormatActionPerformed
-        // TODO add your handling code here:
-        String format = cmbFormatSearch.getItemAt(cmbFormatSearch.getSelectedIndex());
-        
         DefaultTableModel model = (DefaultTableModel) tblSearchResults.getModel();
         model.setRowCount(0);
-        
-        for (Book book : this.books) { 
-            if (book.getFormat().equals(format)) {
+
+        // El resto de la lógica (iterar sobre author.getBooks()) permanece igual.
+        if (author != null) {
+            for (Book book : author.getBooks()) {
                 String authors = book.getAuthors().get(0).getFullname();
                 for (int i = 1; i < book.getAuthors().size(); i++) {
                     authors += (", " + book.getAuthors().get(i).getFullname());
@@ -2009,7 +1963,35 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
                     model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
                 }
                 if (book instanceof Audiobook audiobook) {
-                    model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrador().getFullname(), audiobook.getDuration()});
+                    model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrator().getFullname(), audiobook.getDuration()});
+                }
+            }
+        }
+    }//GEN-LAST:event_btnSearchBooksByAuthorActionPerformed
+
+    private void btnSearchBooksByFormatActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchBooksByFormatActionPerformed
+        // TODO add your handling code here:
+        String format = cmbFormatSearch.getItemAt(cmbFormatSearch.getSelectedIndex());
+    
+        DefaultTableModel model = (DefaultTableModel) tblSearchResults.getModel();
+        model.setRowCount(0);
+
+        // ERROR CORREGIDO: Usamos controller.getBooks()
+        for (Book book : controller.getBooks()) { // <-- CORREGIDO
+            if (book.getFormat().equals(format)) {
+                // ... resto de la lógica
+                String authors = book.getAuthors().get(0).getFullname();
+                for (int i = 1; i < book.getAuthors().size(); i++) {
+                    authors += (", " + book.getAuthors().get(i).getFullname());
+                }
+                if (book instanceof PrintedBook printedBook) {
+                    model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
+                }
+                if (book instanceof DigitalBook digitalBook) {
+                    model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
+                }
+                if (book instanceof Audiobook audiobook) {
+                    model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrator().getFullname(), audiobook.getDuration()});
                 }
             }
         }
@@ -2017,16 +1999,18 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
 
     private void btnSearchMaxPublishersAuthorActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchMaxPublishersAuthorActionPerformed
         // TODO add your handling code here:
-       // Llamar al Controlador
-    ServiceResponse<List<Author>> response = controller.searchAuthorsByPublisherDiversity();
+        ServiceResponse<List<Author>> response = controller.searchAuthorsByPublisherDiversity();
     
-    if (response.isSuccess()) {
-        JOptionPane.showMessageDialog(this, response.getMessage(), "Consulta Exitosa", JOptionPane.INFORMATION_MESSAGE);
-        
-        // Tarea del Patrón Observador: Actualizar jTable6 con response.getData()
-    } else {
-        JOptionPane.showMessageDialog(this, response.getMessage(), "Error en Consulta (" + response.getCode() + ")", JOptionPane.ERROR_MESSAGE);
-        } 
+        if (response.isSuccess()) {
+            JOptionPane.showMessageDialog(this, response.getMessage(), "Consulta Exitosa", JOptionPane.INFORMATION_MESSAGE);
+
+            // En lugar de solo mostrar un mensaje, forzamos la recarga de la tabla 
+            // de la consulta (tblTopAuthors) llamando a update().
+            this.update(); 
+
+        } else {
+            JOptionPane.showMessageDialog(this, response.getMessage(), "Error en Consulta (" + response.getCode() + ")", JOptionPane.ERROR_MESSAGE);
+        }
     }//GEN-LAST:event_btnSearchMaxPublishersAuthorActionPerformed
 
     private void cmbBookFormatSearchActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cmbBookFormatSearchActionPerformed
@@ -2038,16 +2022,23 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
      */
     public static void main(String args[]) {
         System.setProperty("flatlaf.useNativeLibrary", "false");
-        
+    
         try {
             UIManager.setLookAndFeel(new FlatDarkLaf());
         } catch (Exception ex) {
             System.err.println("Failed to initialize LaF");
         }
+
+        /* ********** PASOS MVC CRUCIALES ********** */
+        // PASO 1: Instanciar el Controlador (La clase que maneja la lógica de negocio).
+        MegaferiaController controller = new MegaferiaController(); // <--- AÑADIR ESTA LÍNEA
+        /* **************************************** */
+
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
             public void run() {
-                new MegaferiaFrame().setVisible(true);
+                // PASO 2: Crear la Vista y PASARLE el Controlador (Inyección de Dependencias).
+                new MegaferiaFrame(controller).setVisible(true); // <--- CORRECCIÓN CLAVE
             }
         });
     }
@@ -2163,5 +2154,5 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     private javax.swing.JTextField txtStandPrice;
     // End of variables declaration//GEN-END:variables
 
- 
+
 }
