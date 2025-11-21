@@ -449,7 +449,7 @@ public class MegaferiaController implements Observable {
     public List<Book> getBooks() {
         return storage.getBooks();
     }
-    // También puedes crear un getter para la consulta compleja si quieres llenarla al inicio
+    // getter para la consulta compleja
     public ServiceResponse<List<Author>> getTopAuthorsByPublisherDiversity() {
         return searchAuthorsByPublisherDiversity(); // Llama a la consulta compleja
     }

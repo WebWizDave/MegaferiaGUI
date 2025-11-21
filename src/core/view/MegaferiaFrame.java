@@ -41,7 +41,163 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
         this.update(); // Carga inicial
 
     }
+    
+    private void loadComboBoxes() {
+    // 1. Limpiar todos los ComboBoxes clave
+    cmbManagerReg.removeAllItems();
+    cmbPublisherBookReg.removeAllItems();
+    cmbPublisherStandAssign.removeAllItems();
+    cmbNarratorReg.removeAllItems();
+    cmbStandIDSelect.removeAllItems();
+    cmbBookAuthorSelect.removeAllItems();
+    cmbAuthorSearch.removeAllItems();
+    
+    // 2. Llenar con datos frescos
+    
+    // Gerentes (cmbManagerReg)
+    controller.getManagers().forEach(m -> cmbManagerReg.addItem(m.getId() + " - " + m.getFullname()));
 
+    // Editoriales (cmbPublisherBookReg, cmbPublisherStandAssign)
+    controller.getPublishers().forEach(p -> {
+        String item = p.getNit() + " - " + p.getName();
+        cmbPublisherBookReg.addItem(item);
+        cmbPublisherStandAssign.addItem(item);
+    });
+    
+    // Autores (cmbBookAuthorSelect, cmbAuthorSearch)
+    controller.getAuthors().forEach(a -> {
+        String item = a.getId() + " - " + a.getFullname();
+        cmbBookAuthorSelect.addItem(item);
+        cmbAuthorSearch.addItem(item);
+    });
+    
+    // Narradores (cmbNarratorReg)
+    controller.getNarrators().forEach(n -> cmbNarratorReg.addItem(n.getId() + " - " + n.getFullname()));
+    
+    // Stands (cmbStandIDSelect - para el carrito)
+    controller.getStands().forEach(s -> cmbStandIDSelect.addItem(String.valueOf(s.getId())));
+    }
+    
+    
+    // Metodos helper loadTable
+    private void loadPublishersTable() {
+    DefaultTableModel model = (DefaultTableModel) tblPublishers.getModel(); 
+    model.setRowCount(0); 
+
+    controller.getPublishers().forEach(p -> {
+        Object[] rowData = {
+            p.getNit(),
+            p.getName(),
+            p.getAddress(),
+            p.getManager().getFullname(),
+            p.getStands().size() 
+        };
+        model.addRow(rowData);
+    });
+    }
+    
+    private void loadPeopleTable() {
+    DefaultTableModel model = (DefaultTableModel) tblPeople.getModel(); 
+    model.setRowCount(0); 
+
+    // Muestra Gerentes, Autores y Narradores en la misma tabla
+    
+    // Gerentes
+    controller.getManagers().forEach(m -> {
+        model.addRow(new Object[]{m.getId(), m.getFullname(), m.getAge(), "Gerente"});
+    });
+    // Autores
+    controller.getAuthors().forEach(a -> {
+        model.addRow(new Object[]{a.getId(), a.getFullname(), a.getAge(), "Autor"});
+    });
+    // Narradores
+    controller.getNarrators().forEach(n -> {
+        model.addRow(new Object[]{n.getId(), n.getFullname(), n.getAge(), "Narrador"});
+    });
+    }
+    
+    private void loadTopAuthorsTable() {
+    DefaultTableModel model = (DefaultTableModel) tblTopAuthors.getModel(); 
+    model.setRowCount(0); 
+    
+    // Llama al getter de la consulta compleja
+    ServiceResponse<List<Author>> response = controller.getTopAuthorsByPublisherDiversity();
+
+    if (response.isSuccess()) {
+        response.getData().forEach(a -> {
+             // Este método asume que la consulta compleja te da la lista de autores
+            model.addRow(new Object[]{a.getId(), a.getFullname()});
+        });
+    }
+    }
+    
+    private void loadStandsTable() {
+    // 1. Obtener el modelo de la tabla de Stands
+    DefaultTableModel model = (DefaultTableModel) tblStands.getModel(); 
+    
+    // 2. Limpiar filas existentes
+    model.setRowCount(0); 
+
+    // 3. Llenar con datos frescos
+    controller.getStands().forEach(s -> {
+        // Se asume la estructura de la tabla: ID, Precio, Editoriales Asignadas
+        String publisherNames = s.getPublishers().stream()
+                                  .map(p -> p.getName())
+                                  .collect(Collectors.joining(", "));
+        
+        Object[] rowData = {
+            s.getId(),
+            s.getPrice(),
+            s.getPublisherQuantity(), // Cantidad de editoriales (usando el método del UML)
+            publisherNames.isEmpty() ? "N/A" : publisherNames // Nombres de las editoriales
+        };
+        model.addRow(rowData);
+    });
+    }
+    
+    private void loadBooksTable() {
+    // 1. Obtener el modelo de la tabla de Libros
+    DefaultTableModel model = (DefaultTableModel) tblBooks.getModel(); 
+    
+    // 2. Limpiar filas existentes
+    model.setRowCount(0); 
+
+    // 3. Llenar con datos frescos
+    controller.getBooks().forEach(b -> {
+        
+        // Convertir la lista de Autores en una cadena separada por comas
+        String authorList = b.getAuthors().stream()
+                              .map(a -> a.getFullname())
+                              .collect(Collectors.joining(", "));
+        
+        // Se asume la estructura de la tabla: Título, Autores, ISBN, Género, Formato, Valor, Editorial
+        Object[] rowData = {
+            b.getTitle(),
+            authorList,
+            b.getIsbn(),
+            b.getGenre(),
+            b.getFormat(),
+            b.getValue(),
+            b.getPublisher().getName() // Asumiendo que Book tiene un getPublisher()
+        };
+        model.addRow(rowData);
+    });
+    }
+    
+    @Override
+    public void update(Observable o, Object arg) {
+    // 1. Recargar todos los ComboBoxes (la parte más importante de la actualización)
+    loadComboBoxes(); 
+    
+    // 2. Recargar las Tablas de visualización principal
+    loadPublishersTable(); 
+    loadPeopleTable();   
+    loadStandsTable();   
+    loadBooksTable();    
+    loadTopAuthorsTable();
+}
+    
+    
     /**
      * This method is called from within the constructor to initialize the form.
      * WARNING: Do NOT modify this code. The content of this method is always
@@ -88,7 +244,7 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
         jLabel13 = new javax.swing.JLabel();
         cmbBookGenre = new javax.swing.JComboBox<>();
         btnRegisterBook = new javax.swing.JButton();
-        cmbAuthorSelect = new javax.swing.JComboBox<>();
+        cmbBookAuthorSelect = new javax.swing.JComboBox<>();
         jLabel14 = new javax.swing.JLabel();
         rbPrintedBook = new javax.swing.JRadioButton();
         rbDigitalBook = new javax.swing.JRadioButton();
@@ -454,8 +610,8 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
             }
         });
 
-        cmbAuthorSelect.setFont(new java.awt.Font("Yu Gothic UI", 0, 18)); // NOI18N
-        cmbAuthorSelect.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Seleccione uno..." }));
+        cmbBookAuthorSelect.setFont(new java.awt.Font("Yu Gothic UI", 0, 18)); // NOI18N
+        cmbBookAuthorSelect.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Seleccione uno..." }));
 
         jLabel14.setFont(new java.awt.Font("Yu Gothic UI", 0, 18)); // NOI18N
         jLabel14.setText("Tipo");
@@ -645,7 +801,7 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
                                                 .addComponent(txtBookTitle)
                                                 .addComponent(txtBookISBN)
                                                 .addComponent(cmbBookGenre, javax.swing.GroupLayout.Alignment.TRAILING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                                .addComponent(cmbAuthorSelect, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                                                .addComponent(cmbBookAuthorSelect, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
                                         .addGap(28, 28, 28)
                                         .addGroup(jPanelBookLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                                             .addComponent(rbAudiobook)
@@ -673,7 +829,7 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
                                 .addGap(10, 10, 10)
                                 .addGroup(jPanelBookLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                     .addComponent(jLabel11)
-                                    .addComponent(cmbAuthorSelect, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                    .addComponent(cmbBookAuthorSelect, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                                 .addGroup(jPanelBookLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                                     .addComponent(jLabel12)
@@ -1548,13 +1704,13 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
 
     private void btnAddAuthorToBookActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddAuthorToBookActionPerformed
         // TODO add your handling code here:
-        String author = cmbAuthorSelect.getItemAt(cmbAuthorSelect.getSelectedIndex());
+        String author = cmbBookAuthorSelect.getItemAt(cmbBookAuthorSelect.getSelectedIndex());
         txtAreaAuthorIDs.append(author + "\n");
     }//GEN-LAST:event_btnAddAuthorToBookActionPerformed
 
     private void btnRemoveAuthorFromBookActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnRemoveAuthorFromBookActionPerformed
         // TODO add your handling code here:
-        String author = cmbAuthorSelect.getItemAt(cmbAuthorSelect.getSelectedIndex());
+        String author = cmbBookAuthorSelect.getItemAt(cmbBookAuthorSelect.getSelectedIndex());
         txtAreaAuthorIDs.setText(txtAreaAuthorIDs.getText().replace(author + "\n", ""));
     }//GEN-LAST:event_btnRemoveAuthorFromBookActionPerformed
 
@@ -1918,7 +2074,7 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     private javax.swing.JButton btnSearchBooksByType;
     private javax.swing.JButton btnSearchMaxPublishersAuthor;
     private javax.swing.JComboBox<String> cmbAuthorSearch;
-    private javax.swing.JComboBox<String> cmbAuthorSelect;
+    private javax.swing.JComboBox<String> cmbBookAuthorSelect;
     private javax.swing.JComboBox<String> cmbBookFormatSearch;
     private javax.swing.JComboBox<String> cmbBookGenre;
     private javax.swing.JComboBox<String> cmbBookSearch;
@@ -2007,8 +2163,5 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     private javax.swing.JTextField txtStandPrice;
     // End of variables declaration//GEN-END:variables
 
-    @Override
-    public void update(Observable o, Object arg) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
+ 
 }
