@@ -244,7 +244,7 @@ public class MegaferiaController implements Observable {
             return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Los campos principales (Título, Autores, ISBN, Género, Valor, Editorial) son obligatorios.");
         }
 
-        // --- B. Conversión y Búsqueda de Objetos ---
+        // --- B. Conversión y Búsqueda de Objetos --
 
         // 1. Valor (Value)
         double value;
