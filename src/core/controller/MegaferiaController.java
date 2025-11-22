@@ -15,19 +15,22 @@ import java.util.stream.Collectors;
 public class MegaferiaController implements Observable {
     private final StorageService storage;
     private final List<Observer> observers = new ArrayList<>();
-    // 1. Constructor: El controlador se inicializa con acceso al almacenamiento.
+    // 1. Inicializa el controlador utilizando la instancia centralizada de almacenamiento.
+    
     public MegaferiaController() {
         this.storage = MegaferiaStorage.getInstance();
     }
     
-    // 2. Método de ejemplo: Registrar un Autor
+    /**2.
+     * Registra un nuevo autor validando campos obligatorios,
+     * formato del ID y unicidad dentro del sistema.
+     */
 
     public ServiceResponse<Author> registerAuthor(String id, String firstName, String lastName) {
         // --- A. Validación de Entrada (Separación de Responsabilidad de la Vista) ---
         if (id == null || id.isEmpty() || firstName == null || firstName.isEmpty() || lastName == null || lastName.isEmpty()) {
             return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Todos los campos de Autor son obligatorios.");
         }
-
         // Validar y parsear el ID de String a long (asumiendo que Author.id es long)
         long authorId;
         try {
@@ -58,7 +61,13 @@ public class MegaferiaController implements Observable {
         notifyObservers();
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Autor " + firstName + " registrado exitosamente.", newAuthor);
     }
-    
+        // ---------------------------------------------------------------------
+    // REGISTRO DE GERENTES
+    // ---------------------------------------------------------------------
+
+    /**
+     * Registra un gerente validando unicidad y formato de ID.
+     */
     public ServiceResponse<Manager> registerManager(String id, String firstName, String lastName) {
         // --- A. Validación de Entrada ---
         if (id == null || id.isEmpty() || firstName == null || firstName.isEmpty() || lastName == null || lastName.isEmpty()) {
@@ -92,6 +101,14 @@ public class MegaferiaController implements Observable {
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Gerente " + firstName + " registrado exitosamente.", newManager);
     }
     
+         // ---------------------------------------------------------------------
+    // REGISTRO DE NARRADORES
+    // ---------------------------------------------------------------------
+
+    /**
+     * Registra un narrador mediante validación de campos básicos
+     * y verificación de unicidad.
+     */  
     public ServiceResponse<Narrator> registerNarrator(String id, String firstName, String lastName) {
         // --- A. Validación de Entrada ---
         if (id == null || id.isEmpty() || firstName == null || firstName.isEmpty() || lastName == null || lastName.isEmpty()) {
@@ -122,6 +139,14 @@ public class MegaferiaController implements Observable {
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Narrador " + firstName + " registrado exitosamente.", newNarrator);
         }
     
+     // ---------------------------------------------------------------------
+    // REGISTRO DE STANDS
+    // ---------------------------------------------------------------------
+
+    /**
+     * Registra un nuevo stand verificando campos obligatorios, formato numérico
+     * y unicidad del identificador.
+     */
     public ServiceResponse<Stand> registerStand(String id, String price) {
         // --- A. Validación de Entrada ---
         if (id == null || id.isEmpty() || price == null || price.isEmpty()) {
@@ -154,7 +179,14 @@ public class MegaferiaController implements Observable {
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Stand N° " + standId + " registrado exitosamente.", newStand);
         }
     
-    
+     // ---------------------------------------------------------------------
+    // REGISTRO DE EDITORIALES
+    // ---------------------------------------------------------------------
+
+    /**
+     * Registra una editorial asociándola a un gerente existente.
+     * Verifica unicidad del NIT y consistencia de la relación.
+     */
     public ServiceResponse<Publisher> registerPublisher(String nit, String name, String address, String managerIdString) {
         // --- A. Validación de Entrada ---
         if (nit.isEmpty() || name.isEmpty() || address.isEmpty() || managerIdString == null || managerIdString.isEmpty()) {
@@ -193,7 +225,14 @@ public class MegaferiaController implements Observable {
         // --- E. Respuesta Exitosa ---
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Editorial " + name + " registrada exitosamente.", newPublisher);
         }
-    
+        // ---------------------------------------------------------------------
+    // REGISTRO DE LIBROS
+    // ---------------------------------------------------------------------
+
+    /**
+     * Registra un libro aplicando validaciones comunes
+     * y construcción polimórfica según el tipo especificado.
+     */
     public ServiceResponse<Book> registerBook(
         String title, String authorIdsString, String isbn, String genre, 
         String valueString, String publisherNit, String bookType, 
