@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import core.controller.utils.Observer;
 import core.controller.utils.Observable;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.swing.JOptionPane;
 
@@ -128,16 +129,20 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     }
     
     private void loadTopAuthorsTable() {
-    DefaultTableModel model = (DefaultTableModel) tblTopAuthors.getModel(); 
-    model.setRowCount(0); 
-    
-    // Llama al getter de la consulta compleja
-    ServiceResponse<List<Author>> response = controller.getTopAuthorsByPublisherDiversity();
+    DefaultTableModel model = (DefaultTableModel) tblTopAuthors.getModel();
+    model.setRowCount(0);
+
+    // CAMBIO: Recibimos un Map<Author, Long>
+    ServiceResponse<Map<Author, Long>> response = controller.getTopAuthorsByPublisherDiversity();
 
     if (response.isSuccess()) {
-        response.getData().forEach(a -> {
-             // Este método asume que la consulta compleja te da la lista de autores
-            model.addRow(new Object[]{a.getId(), a.getFullname()});
+        // Iteramos sobre el Mapa (Clave: Autor, Valor: Cantidad)
+        response.getData().forEach((author, count) -> {
+            model.addRow(new Object[]{
+                author.getId(), 
+                author.getFullname(), 
+                count // <--- ¡AHORA SÍ TENEMOS EL NÚMERO PARA LA 3ra COLUMNA!
+            });
         });
     }
     }
@@ -193,6 +198,90 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
         };
         model.addRow(rowData);
     });
+    }
+    
+    // Método helper para llenar la tabla de resultados de búsqueda
+    private void fillSearchResultsTable(List<Book> books) {
+        DefaultTableModel model = (DefaultTableModel) tblSearchResults.getModel();
+        model.setRowCount(0);
+
+        books.forEach(book -> {
+            String authors = book.getAuthors().stream()
+                    .map(Author::getFullname)
+                    .collect(Collectors.joining(", "));
+
+            String narrator = "N/A";
+            String duration = "N/A";
+            String hyperlink = "N/A";
+            String pages = "N/A";
+            String copies = "N/A";
+
+            if (book instanceof Audiobook ab) {
+                narrator = ab.getNarrator().getFullname();
+                duration = String.valueOf(ab.getDuration());
+            } else if (book instanceof DigitalBook db) {
+                hyperlink = db.getHyperlink();
+            } else if (book instanceof PrintedBook pb) {
+                pages = String.valueOf(pb.getPages());
+                copies = String.valueOf(pb.getCopies());
+            }
+
+            model.addRow(new Object[]{
+                book.getTitle(),
+                authors,
+                book.getIsbn(),
+                book.getGenre(),
+                book.getFormat(),
+                book.getValue(),
+                book.getPublisher().getName(),
+                copies,
+                pages,
+                hyperlink,
+                narrator,
+                duration
+            });
+        });
+    }
+    
+    private void performSearch() {
+        // 1. Obtener criterios
+        String authorItem = (String) cmbAuthorSearch.getSelectedItem();
+        String formatItem = (String) cmbFormatSearch.getSelectedItem();
+
+        String authorId = null;
+        if (authorItem != null && authorItem.contains(" - ")) {
+            authorId = authorItem.split(" - ")[0].trim();
+        }
+
+        boolean hasAuthor = (authorId != null && !authorId.isEmpty());
+        boolean hasFormat = (formatItem != null && !formatItem.equals("Seleccione uno..."));
+
+        ServiceResponse<List<Book>> response = null;
+
+        // 2. Decidir qué búsqueda ejecutar
+        if (hasAuthor && hasFormat) {
+            // AMBOS: Búsqueda combinada
+            response = controller.searchBooksByAuthorAndFormat(authorId, formatItem);
+        } else if (hasAuthor) {
+            // SOLO AUTOR
+            response = controller.searchBooksByAuthor(authorId);
+        } else if (hasFormat) {
+            // SOLO FORMATO
+            response = controller.searchBooksByFormat(formatItem);
+        } else {
+            JOptionPane.showMessageDialog(this, "Seleccione al menos un criterio (Autor o Formato).", "Atención", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // 3. Manejar Resultado
+        if (response.isSuccess()) {
+            JOptionPane.showMessageDialog(this, response.getMessage(), "Búsqueda Exitosa", JOptionPane.INFORMATION_MESSAGE);
+            fillSearchResultsTable(response.getData());
+        } else {
+            // Limpiar tabla si no hay resultados
+            ((DefaultTableModel) tblSearchResults.getModel()).setRowCount(0);
+            JOptionPane.showMessageDialog(this, response.getMessage(), "Sin Resultados", JOptionPane.INFORMATION_MESSAGE);
+        }
     }
     
     @Override
@@ -1586,7 +1675,7 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
 
     private void btnRegisterAuthorActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnRegisterAuthorActionPerformed
         // 1. CAPTURAR DATOS DE LA VISTA
-    // Nota: Usar Long.toString(id) para el ID ya que los JTextFields devuelven String.
+    //Usar Long.toString(id) para el ID ya que los JTextFields devuelven String.
     String id = txtPersonID.getText(); // Usamos txtAuthorID o txtPersonID (el que hayas elegido)
     String firstName = txtPersonFirstName.getText();
     String lastName = txtPersonLastName.getText();
@@ -1605,11 +1694,6 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
         txtPersonID.setText("");
         txtPersonFirstName.setText("");
         txtPersonLastName.setText("");
-        
-        // Tarea Pendiente: Actualizar el ComboBox jComboBox3 con el nuevo autor.
-        // Por ahora, para que compile, puedes dejar el código original:
-        // jComboBox3.addItem(id + " - " + firstName + " " + lastName);
-        // jComboBox10.addItem(id + " - " + firstName + " " + lastName);
         
     } else {
         // Error (Códigos 4xx o 5xx)
@@ -1634,13 +1718,12 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
         
         JOptionPane.showMessageDialog(this, response.getMessage(), "Registro Exitoso", JOptionPane.INFORMATION_MESSAGE);
         
-        // Limpiar campos (opcional, si los campos se usan para otros registros)
-        // txtPersonID.setText("");
-        // txtPersonFirstName.setText("");
-        // txtPersonLastName.setText("");
         
-        // Actualizar ComboBox jComboBox1 (que se usa para asignar Gerente a Editorial)
-        // Nota: Idealmente, esto sería una actualización automática, pero por ahora lo dejamos manual.
+        txtPersonID.setText("");
+        txtPersonFirstName.setText("");
+        txtPersonLastName.setText("");
+        
+        
         cmbManagerReg.addItem(id + " - " + firstName + " " + lastName);
         
     } else {
@@ -1714,7 +1797,20 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
 
     private void btnAddAuthorToBookActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddAuthorToBookActionPerformed
         // TODO add your handling code here:
-        String author = cmbBookAuthorSelect.getItemAt(cmbBookAuthorSelect.getSelectedIndex());
+        String author = (String) cmbBookAuthorSelect.getSelectedItem();
+    
+        // Validación: No agregar si es el default o si está vacío
+        if (author == null || author.equals("Seleccione uno...") || author.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Seleccione un autor válido.");
+            return;
+        }
+
+        // Validación: Evitar duplicados visuales en el TextArea
+        if (txtAreaAuthorIDs.getText().contains(author)) {
+            JOptionPane.showMessageDialog(this, "Este autor ya está en la lista.");
+            return;
+        }
+
         txtAreaAuthorIDs.append(author + "\n");
     }//GEN-LAST:event_btnAddAuthorToBookActionPerformed
 
@@ -1725,64 +1821,125 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     }//GEN-LAST:event_btnRemoveAuthorFromBookActionPerformed
 
     private void btnRegisterBookActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnRegisterBookActionPerformed
-        // TODO add your handling code here:
-       // --- A. Captura de Datos Comunes ---
-    String title = txtBookTitle.getText();
-    String authorIdsString = txtAreaAuthorIDs.getText(); // Lista de IDs de autores
-    String isbn = txtBookISBN.getText();
-    String genre = (String) cmbBookSearch.getSelectedItem(); // Asumo que es el JComboBox para Género
-    String valueString = txtBookValue.getText();
-    String publisherItem = (String) cmbBookGenre.getSelectedItem();
-    String publisherNit = "";
+        // --- A. Captura y Limpieza de Datos Comunes ---
+        String title = txtBookTitle.getText().trim();
+        String authorIdsString = txtAreaAuthorIDs.getText(); 
+        String isbn = txtBookISBN.getText().trim();
 
-    if (publisherItem != null && publisherItem.contains(" - ")) {
-        publisherNit = publisherItem.split(" - ")[0]; // Extrae el NIT
-    }
-    
-    // --- B. Determinar Tipo de Libro y Captura de Datos Específicos ---
-    String bookType = "";
-    String pagesString = "";
-    String copiesString = "";
-    String hyperlink = "";
-    String durationString = "";
-    String narratorIdString = "";
-
-    if (rbPrintedBook.isSelected()) {
-        bookType = "IMPRESO";
-        pagesString = txtPrintedBookPages.getText();
-        copiesString = txtPrintedBookCopies.getText();
-        
-    } else if (rbDigitalBook.isSelected()) {
-        bookType = "DIGITAL";
-        hyperlink = txtDigitalBookHyperlink.getText();
-        
-    } else if (rbAudiobook.isSelected()) {
-        bookType = "AUDIO";
-        durationString = txtAudiobookDuration.getText();
-        
-        String selectedNarratorItem = (String) cmbNarratorReg.getSelectedItem();
-        if (selectedNarratorItem != null && selectedNarratorItem.contains(" - ")) {
-             narratorIdString = selectedNarratorItem.split(" - ")[0]; // Extrae el ID
+        // 1. CORRECCIÓN GÉNERO: Usar cmbBookGenre (no cmbBookSearch)
+        String format = "";
+        if (cmbBookFormatSearch.getSelectedItem() != null) {
+            format = cmbBookFormatSearch.getSelectedItem().toString();
+            if (format.equals("Seleccione uno...")) {
+                format = ""; // Para que falle la validación si no escogen nada
+            }
         }
-    } else {
-        JOptionPane.showMessageDialog(this, "Debe seleccionar un tipo de libro.", "Error de Selección", JOptionPane.ERROR_MESSAGE);
-        return;
-    }
-    
-    // --- C. Llamar al Controlador ---
-    ServiceResponse<Book> response = controller.registerBook(
-        title, authorIdsString, isbn, genre, valueString, 
-        publisherNit, bookType, pagesString, copiesString, 
-        hyperlink, durationString, narratorIdString
-    );
-    
-    // --- D. Manejar Respuesta ---
-    if (response.isSuccess()) {
-        JOptionPane.showMessageDialog(this, response.getMessage(), "Registro Exitoso", JOptionPane.INFORMATION_MESSAGE);
+        String genre = "";
+        if (cmbBookGenre.getSelectedItem() != null) {
+            genre = cmbBookGenre.getSelectedItem().toString().trim();
+            // Validación extra: Evitar guardar "Seleccione uno..." como género
+            if (genre.equals("Seleccione uno...")) {
+                 genre = ""; // Esto disparará el error 400 correctamente si no se elige nada
+            }
+        }
+
+        String valueString = txtBookValue.getText().trim();
+
+        String publisherItem = "";
+        if (cmbPublisherBookReg.getSelectedItem() != null) {
+            publisherItem = cmbPublisherBookReg.getSelectedItem().toString();
+        }
+
+        String publisherNit = "";
+        if (!publisherItem.isEmpty() && publisherItem.contains(" - ")) {
+            publisherNit = publisherItem.split(" - ")[0].trim(); // Extrae el NIT
+        }
+
+        // Limpieza de IDs de Autores (Tu código ya estaba bien aquí)
+        List<String> authorIDsList = java.util.Arrays.stream(authorIdsString.split("\\n"))
+            .map(String::trim)
+            .filter(id -> !id.isEmpty())
+            .map(line -> {
+            // Si la línea tiene el formato "123 - Nombre", tomamos solo "123"
+            if (line.contains(" - ")) {
+                return line.split(" - ")[0].trim();
+            }
+            // Si la línea es solo "123", la dejamos igual
+            return line;
+            })
+            .collect(java.util.stream.Collectors.toList());
         
-    } else {
-        JOptionPane.showMessageDialog(this, response.getMessage(), "Error de Registro (" + response.getCode() + ")", JOptionPane.ERROR_MESSAGE);
-    } 
+        // --- B. Determinar Tipo de Libro y Captura de Datos Específicos ---
+        String bookType = "";
+        String pagesString = "";
+        String copiesString = "";
+        String hyperlink = "";
+        String durationString = "";
+        String narratorIdString = "";
+
+        if (rbPrintedBook.isSelected()) {
+            bookType = "IMPRESO";
+            pagesString = txtPrintedBookPages.getText().trim();
+            copiesString = txtPrintedBookCopies.getText().trim();
+
+        } else if (rbDigitalBook.isSelected()) {
+            bookType = "DIGITAL";
+            hyperlink = txtDigitalBookHyperlink.getText().trim();
+
+        } else if (rbAudiobook.isSelected()) {
+            bookType = "AUDIO";
+            durationString = txtAudiobookDuration.getText().trim();
+
+            String selectedNarratorItem = (String) cmbNarratorReg.getSelectedItem();
+            if (selectedNarratorItem != null && selectedNarratorItem.contains(" - ")) {
+                narratorIdString = selectedNarratorItem.split(" - ")[0].trim(); // Extrae y limpia el ID
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Debe seleccionar un tipo de libro.", "Error de Selección", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        // --- C. Llamar al Controlador ---
+        // NOTA: Se ha reemplazado authorIdsString por authorIDsList (List<String>)
+        ServiceResponse<Book> response = controller.registerBook(
+            title, 
+            authorIDsList, 
+            isbn, 
+            genre, 
+            format,       
+            valueString, 
+            publisherNit, 
+            bookType, 
+            pagesString, 
+            copiesString, 
+            hyperlink, 
+            durationString, 
+            narratorIdString
+        );
+
+        // --- D. Manejar Respuesta ---
+            if (response.isSuccess()) {
+            JOptionPane.showMessageDialog(this, response.getMessage(), "Registro Exitoso", JOptionPane.INFORMATION_MESSAGE);
+
+            // 1. Limpiar campos de texto simples
+            txtBookTitle.setText("");
+            txtBookISBN.setText("");
+            txtBookValue.setText("");
+
+            // 2. Limpiar campos específicos de tipo
+            txtPrintedBookPages.setText("");
+            txtPrintedBookCopies.setText("");
+            txtDigitalBookHyperlink.setText("");
+            txtAudiobookDuration.setText("");
+
+            // 3.Limpiar la lista de autores acumulados
+            txtAreaAuthorIDs.setText(""); 
+            // Nota: Las tablas y combos se actualizan solos gracias al this.update() del Observer
+
+        } else {
+            JOptionPane.showMessageDialog(this, response.getMessage(), "Error de Registro (" + response.getCode() + ")", JOptionPane.ERROR_MESSAGE);
+        }
+    
     }//GEN-LAST:event_btnRegisterBookActionPerformed
 
     private void btnAddStandToPurchaseActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAddStandToPurchaseActionPerformed
@@ -1810,27 +1967,27 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
     }//GEN-LAST:event_btnRemovePublisherFromStandActionPerformed
 
     private void btnConfirmStandAssignmentActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnConfirmStandAssignmentActionPerformed
-        // TODO add your handling code here:
-        // Componentes: 
-    // Editorial: jComboBox4
-    // Stands (IDs): jTextArea3
-    
-    String publisherItem = (String) cmbBookFormatSearch.getSelectedItem();
+    // 1. CORRECCIÓN: Usar el ComboBox correcto (cmbPublisherStandAssign)
+    String publisherItem = (String) cmbPublisherStandAssign.getSelectedItem();
     String publisherNit = "";
-    
+
+    // Validar que se haya seleccionado algo válido
     if (publisherItem != null && publisherItem.contains(" - ")) {
-        publisherNit = publisherItem.split(" - ")[0]; // Extrae el NIT
-    }
-    
-    // Obtener y convertir los IDs de Stand del jTextArea3 (separados por \n)
-    String standIdsText = txtAreaStandIDs.getText().trim();
-    if (standIdsText.isEmpty()) {
-        JOptionPane.showMessageDialog(this, "Debe agregar al menos un ID de Stand en el carrito.", "Error de Asignación", JOptionPane.ERROR_MESSAGE);
+        publisherNit = publisherItem.split(" - ")[0].trim(); // Extrae el NIT
+    } else {
+        JOptionPane.showMessageDialog(this, "Debe seleccionar una Editorial válida.", "Error de Selección", JOptionPane.ERROR_MESSAGE);
         return;
     }
-    
+
+    // 2. Captura y Limpieza de IDs de Stand (Esto ya estaba bien, pero aseguramos robustez)
+    String standIdsText = txtAreaStandIDs.getText().trim();
+    if (standIdsText.isEmpty()) {
+        JOptionPane.showMessageDialog(this, "Debe agregar al menos un ID de Stand al carrito.", "Error de Asignación", JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+
     // Convertir IDs a List<Long>
-    List<Long> standIds = Arrays.stream(standIdsText.split("\\n"))
+    List<Long> standIds = java.util.Arrays.stream(standIdsText.split("\\n"))
             .map(String::trim)
             .filter(s -> !s.isEmpty())
             .map(s -> {
@@ -1840,29 +1997,29 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
                     return -1L; // Marcador para error
                 }
             })
-            .filter(id -> id != -1L) // Eliminar IDs inválidos (luego el controlador valida si no encuentra el objeto)
-            .collect(Collectors.toList());
+            .filter(id -> id != -1L) 
+            .collect(java.util.stream.Collectors.toList());
 
     if (standIds.isEmpty()) {
-        JOptionPane.showMessageDialog(this, "IDs de Stand inválidos.", "Error de Formato", JOptionPane.ERROR_MESSAGE);
+        JOptionPane.showMessageDialog(this, "No se detectaron IDs de Stand válidos.", "Error de Formato", JOptionPane.ERROR_MESSAGE);
         return;
     }
 
-    // Llamar al Controlador
+    // 3. Llamada al Controlador
     ServiceResponse<Publisher> response = controller.assignStandsToPublisher(publisherNit, standIds);
-    
-    // Manejar Respuesta
+
+    // 4. Manejar Respuesta
     if (response.isSuccess()) {
         JOptionPane.showMessageDialog(this, response.getMessage(), "Asignación Exitosa", JOptionPane.INFORMATION_MESSAGE);
         
-        // Limpiar carrito después de la asignación
+        // Limpiar carrito y actualizar
         txtAreaStandIDs.setText("");
-        
-        // Tarea Pendiente: Actualizar tablas (Bloque 8)
+        // La actualización de tablas es automática por el Observer, pero limpiamos la visualización de la lista de editoriales también si quieres
+        txtAreaPublisherList.setText(""); 
         
     } else {
         JOptionPane.showMessageDialog(this, response.getMessage(), "Error de Asignación (" + response.getCode() + ")", JOptionPane.ERROR_MESSAGE);
-        }
+    }
     }//GEN-LAST:event_btnConfirmStandAssignmentActionPerformed
 
     private void btnLoadPublishersTableActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLoadPublishersTableActionPerformed
@@ -1934,80 +2091,21 @@ public class MegaferiaFrame extends javax.swing.JFrame implements Observer {
 
     private void btnSearchBooksByAuthorActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchBooksByAuthorActionPerformed
         // TODO add your handling code here:
-        String[] authorData = cmbAuthorSearch.getItemAt(cmbAuthorSearch.getSelectedIndex()).split(" - ");
-        long authorId = Long.parseLong(authorData[0]);
-
-        Author author = null;
-        // ERROR CORREGIDO: Usamos controller.getAuthors()
-        for (Author auth : controller.getAuthors()) { // <-- CORREGIDO
-            if (auth.getId() == authorId) {
-                author = auth;
-                break; // Se puede añadir 'break' para optimizar la búsqueda
-            }
-        }
-
-        DefaultTableModel model = (DefaultTableModel) tblSearchResults.getModel();
-        model.setRowCount(0);
-
-        // El resto de la lógica (iterar sobre author.getBooks()) permanece igual.
-        if (author != null) {
-            for (Book book : author.getBooks()) {
-                String authors = book.getAuthors().get(0).getFullname();
-                for (int i = 1; i < book.getAuthors().size(); i++) {
-                    authors += (", " + book.getAuthors().get(i).getFullname());
-                }
-                if (book instanceof PrintedBook printedBook) {
-                    model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
-                }
-                if (book instanceof DigitalBook digitalBook) {
-                    model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
-                }
-                if (book instanceof Audiobook audiobook) {
-                    model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrator().getFullname(), audiobook.getDuration()});
-                }
-            }
-        }
+        performSearch();
     }//GEN-LAST:event_btnSearchBooksByAuthorActionPerformed
 
     private void btnSearchBooksByFormatActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchBooksByFormatActionPerformed
         // TODO add your handling code here:
-        String format = cmbFormatSearch.getItemAt(cmbFormatSearch.getSelectedIndex());
-    
-        DefaultTableModel model = (DefaultTableModel) tblSearchResults.getModel();
-        model.setRowCount(0);
-
-        // ERROR CORREGIDO: Usamos controller.getBooks()
-        for (Book book : controller.getBooks()) { // <-- CORREGIDO
-            if (book.getFormat().equals(format)) {
-                // ... resto de la lógica
-                String authors = book.getAuthors().get(0).getFullname();
-                for (int i = 1; i < book.getAuthors().size(); i++) {
-                    authors += (", " + book.getAuthors().get(i).getFullname());
-                }
-                if (book instanceof PrintedBook printedBook) {
-                    model.addRow(new Object[]{printedBook.getTitle(), authors, printedBook.getIsbn(), printedBook.getGenre(), printedBook.getFormat(), printedBook.getValue(), printedBook.getPublisher().getName(), printedBook.getCopies(), printedBook.getPages(), "-", "-", "-"});
-                }
-                if (book instanceof DigitalBook digitalBook) {
-                    model.addRow(new Object[]{digitalBook.getTitle(), authors, digitalBook.getIsbn(), digitalBook.getGenre(), digitalBook.getFormat(), digitalBook.getValue(), digitalBook.getPublisher().getName(), "-", "-", digitalBook.hasHyperlink() ? digitalBook.getHyperlink() : "No", "-", "-"});
-                }
-                if (book instanceof Audiobook audiobook) {
-                    model.addRow(new Object[]{audiobook.getTitle(), authors, audiobook.getIsbn(), audiobook.getGenre(), audiobook.getFormat(), audiobook.getValue(), audiobook.getPublisher().getName(), "-", "-", "-", audiobook.getNarrator().getFullname(), audiobook.getDuration()});
-                }
-            }
-        }
+        performSearch();
     }//GEN-LAST:event_btnSearchBooksByFormatActionPerformed
 
     private void btnSearchMaxPublishersAuthorActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnSearchMaxPublishersAuthorActionPerformed
         // TODO add your handling code here:
-        ServiceResponse<List<Author>> response = controller.searchAuthorsByPublisherDiversity();
+        ServiceResponse<Map<Author, Long>> response = controller.searchAuthorsByPublisherDiversity();
     
         if (response.isSuccess()) {
             JOptionPane.showMessageDialog(this, response.getMessage(), "Consulta Exitosa", JOptionPane.INFORMATION_MESSAGE);
-
-            // En lugar de solo mostrar un mensaje, forzamos la recarga de la tabla 
-            // de la consulta (tblTopAuthors) llamando a update().
             this.update(); 
-
         } else {
             JOptionPane.showMessageDialog(this, response.getMessage(), "Error en Consulta (" + response.getCode() + ")", JOptionPane.ERROR_MESSAGE);
         }

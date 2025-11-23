@@ -134,6 +134,7 @@ public class MegaferiaController implements Observable {
         storage.getNarrators().add(newNarrator);
 
         // --- D. Respuesta Exitosa ---
+        notifyObservers();
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Narrador " + firstName + " registrado exitosamente.", newNarrator);
     }
 
@@ -171,7 +172,7 @@ public class MegaferiaController implements Observable {
 
         Stand newStand = new Stand(standId, standPrice);
         storage.getStands().add(newStand);
-
+        notifyObservers();
         // --- D. Respuesta Exitosa ---
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Stand N° " + standId + " registrado exitosamente.", newStand);
     }
@@ -217,9 +218,10 @@ public class MegaferiaController implements Observable {
         // --- D. Creación y Persistencia ---
         Publisher newPublisher = new Publisher(nit, name, address, manager);
         storage.getPublishers().add(newPublisher);
-
+        notifyObservers();
         // --- E. Respuesta Exitosa ---
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Editorial " + name + " registrada exitosamente.", newPublisher);
+<<<<<<< Updated upstream
     }
     // ---------------------------------------------------------------------
     // REGISTRO DE LIBROS
@@ -340,6 +342,110 @@ public class MegaferiaController implements Observable {
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Libro '" + title + "' registrado exitosamente como " + bookType + ".", newBook);
     }
 
+=======
+        }
+    
+    
+    public ServiceResponse<Book> registerBook(
+        String title, 
+        List<String> authorIDs, 
+        String isbn, 
+        String genre, 
+        String format, 
+        String valueString, 
+        String publisherNit, 
+        String bookType,
+        String pagesString, 
+        String copiesString, 
+        String hyperlink, 
+        String durationString, 
+        String narratorIdString) 
+{
+    // --- A. Validaciones  ---
+    if (title.isEmpty() || authorIDs == null || authorIDs.isEmpty() || isbn.isEmpty() || genre.isEmpty() || format.isEmpty() || valueString.isEmpty() || publisherNit.isEmpty()) {
+        return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Los campos principales (Título, Autores, ISBN, Género, Formato, Valor, Editorial) son obligatorios.");
+    }
+
+    // ... (Bloque B: Conversión y Búsqueda de Objetos se mantiene IGUAL) ...
+    // ... (Parseo de Value, Publisher, Autores y validación ISBN) ...
+    
+    // --- REPETICIÓN DEL BLOQUE B PARA CONTEXTO (Asegúrate de tenerlo) ---
+    double value;
+    try { value = Double.parseDouble(valueString); } catch (NumberFormatException e) { return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Valor debe ser numérico."); }
+    
+    Publisher publisher = storage.getPublishers().stream().filter(p -> p.getNit().equals(publisherNit)).findFirst().orElse(null);
+    if (publisher == null) return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Editorial no encontrada.");
+
+    ArrayList<Author> authors = new ArrayList<>();
+    for (String idStr : authorIDs) {
+        try {
+            long authorId = Long.parseLong(idStr);
+            Author author = storage.getAuthors().stream().filter(a -> a.getId() == authorId).findFirst().orElse(null);
+            if (author == null) return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Autor no encontrado.");
+            authors.add(author);
+        } catch (NumberFormatException e) { return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "ID de Autor inválido."); }
+    }
+    
+    if (storage.getBooks().stream().anyMatch(b -> b.getIsbn().equals(isbn))) {
+        return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "ISBN ya existe.");
+    }
+    // -------------------------------------------------------------------
+
+    // --- C. Creación Polimórfica (CORREGIDA) ---
+    Book newBook = null;
+
+    switch (bookType) {
+        case "IMPRESO":
+            int pages, copies;
+            try {
+                pages = Integer.parseInt(pagesString);
+                copies = Integer.parseInt(copiesString);
+            } catch (NumberFormatException e) {
+                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Páginas y Copias deben ser números enteros.");
+            }
+            // CORRECCIÓN 2: Pasamos 'format' en lugar de 'bookType' al constructor
+            newBook = new PrintedBook(title, authors, isbn, genre, format, value, publisher, pages, copies);
+            break;
+
+        case "DIGITAL":
+            if (hyperlink.isEmpty()) {
+                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Hipervínculo es obligatorio.");
+            }
+            // CORRECCIÓN 2: Pasamos 'format'
+            newBook = new DigitalBook(title, authors, isbn, genre, format, value, publisher, hyperlink);
+            break;
+
+        case "AUDIO":
+            int duration;
+            try {
+                duration = Integer.parseInt(durationString);
+            } catch (NumberFormatException e) {
+                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "La Duración debe ser un número entero.");
+            }
+            // ... (Búsqueda de Narrador se mantiene IGUAL) ...
+            Narrator narrator = null;
+            try {
+                if (narratorIdString == null || narratorIdString.isEmpty()) return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Narrador obligatorio.");
+                long narratorId = Long.parseLong(narratorIdString);
+                narrator = storage.getNarrators().stream().filter(n -> n.getId() == narratorId).findFirst().orElse(null);
+            } catch (NumberFormatException e) { return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "ID Narrador inválido."); }
+            if (narrator == null) return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Narrador no encontrado.");
+
+            // CORRECCIÓN 2: Pasamos 'format'
+            newBook = new Audiobook(title, authors, isbn, genre, format, value, publisher, duration, narrator);
+            break;
+
+        default:
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Tipo de libro no válido.");
+    }
+
+    // --- D. Persistencia y Respuesta Final ---
+    storage.getBooks().add(newBook);
+    notifyObservers();
+    return new ServiceResponse<>(ResponseCodes.SUCCESS, "Libro registrado exitosamente.", newBook);
+}    
+    
+>>>>>>> Stashed changes
     // Búsqueda de libros por autor
     public ServiceResponse<List<Book>> searchBooksByAuthor(String authorIdString) {
         if (authorIdString == null || authorIdString.isEmpty()) {
@@ -383,6 +489,33 @@ public class MegaferiaController implements Observable {
         return new ServiceResponse<>(ResponseCodes.SUCCESS, result.size() + " libros encontrados.", result);
     }
 
+    // Búsqueda Combinada: Autor Y Formato
+    public ServiceResponse<List<Book>> searchBooksByAuthorAndFormat(String authorIdString, String format) {
+        // 1. Validaciones
+        if (authorIdString == null || authorIdString.isEmpty() || format == null || format.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Autor y Formato son requeridos.");
+        }
+
+        long authorId;
+        try {
+            authorId = Long.parseLong(authorIdString);
+        } catch (NumberFormatException e) {
+            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "ID de autor no válido.");
+        }
+
+        // 2. Filtrado (Cumple ambos criterios)
+        List<Book> result = storage.getBooks().stream()
+            .filter(book -> book.getFormat().equalsIgnoreCase(format)) // Coincide formato
+            .filter(book -> book.getAuthors().stream()                 // Y contiene al autor
+                .anyMatch(author -> author.getId() == authorId))
+            .collect(Collectors.toList());
+
+        if (result.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "No se encontraron libros con esos criterios.");
+        }
+
+        return new ServiceResponse<>(ResponseCodes.SUCCESS, result.size() + " libros encontrados.", result);
+    }
     public ServiceResponse<Publisher> assignStandsToPublisher(String publisherNit, List<Long> standIds) {
         // --- A. Validación y Búsqueda de Editorial ---
         Publisher publisher = storage.getPublishers().stream().filter(p -> p.getNit().equals(publisherNit))
@@ -433,6 +566,7 @@ public class MegaferiaController implements Observable {
         );
     }
 
+<<<<<<< Updated upstream
     public ServiceResponse<List<Author>> searchAuthorsByPublisherDiversity() {
         // 1. Validación de vacío
         if (storage.getBooks().isEmpty()) {
@@ -454,11 +588,26 @@ public class MegaferiaController implements Observable {
                             Collectors.collectingAndThen(Collectors.toSet(), Set::size)
                         )
                 ));
+=======
+    public ServiceResponse<Map<Author, Long>> searchAuthorsByPublisherDiversity() {
+        
+        Map<Author, Long> authorDiversityMap = storage.getBooks().stream()
+            .flatMap(book -> book.getAuthors().stream().map(author -> new AbstractMap.SimpleEntry<>(author, book.getPublisher())))
+            .collect(Collectors.groupingBy(
+                Map.Entry::getKey,
+                Collectors.mapping(Map.Entry::getValue, Collectors.collectingAndThen(
+                    Collectors.toSet(),
+                    Set::size
+                ))
+            )).entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().longValue()));
+>>>>>>> Stashed changes
 
         if (authorDiversityMap.isEmpty()) {
             return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "No se pudo calcular la diversidad.");
         }
 
+<<<<<<< Updated upstream
         // 3. Encontrar el valor máximo de diversidad
         int maxDiversity = authorDiversityMap.values().stream()
                 .max(Integer::compare)
@@ -480,6 +629,27 @@ public class MegaferiaController implements Observable {
                 topAuthors
         );
     }
+=======
+        // Encuentra el máximo de diversidad
+        long maxDiversity = authorDiversityMap.values().stream()
+            .max(Long::compare)
+            .orElse(0L);
+
+        // FILTRO: Obtenemos un MAPA con los ganadores y su puntaje
+        Map<Author, Long> topAuthorsMap = authorDiversityMap.entrySet().stream()
+            .filter(entry -> entry.getValue() == maxDiversity)
+            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        if (topAuthorsMap.isEmpty()) {
+            return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "No se encontraron autores con alta diversidad.");
+        }
+
+        return new ServiceResponse<>(ResponseCodes.SUCCESS, 
+            topAuthorsMap.size() + " autores empatan con el máximo de " + maxDiversity + " editoriales diferentes.", 
+            topAuthorsMap 
+        );
+    }   
+>>>>>>> Stashed changes
 
     //getters 
     public List<Author> getAuthors() {
@@ -507,8 +677,8 @@ public class MegaferiaController implements Observable {
     }
 
     // getter para la consulta compleja
-    public ServiceResponse<List<Author>> getTopAuthorsByPublisherDiversity() {
-        return searchAuthorsByPublisherDiversity(); // Llama a la consulta compleja
+    public ServiceResponse<Map<Author, Long>> getTopAuthorsByPublisherDiversity() {
+    return searchAuthorsByPublisherDiversity();
     }
 
     // Metodos de la interfaz Observable
