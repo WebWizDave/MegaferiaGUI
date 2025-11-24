@@ -4,7 +4,7 @@ package app;
 import core.view.MegaferiaFrame; // Importa la clase de la vista
 import core.controller.MegaferiaController;
 
-public class Main {
+public class Main { 
     public static void main(String[] args) {
         // Inicializar el tema gráfico de la interfaz (FlatDarkLaf), si lo usas
         try {

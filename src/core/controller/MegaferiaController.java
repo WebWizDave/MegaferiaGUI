@@ -221,128 +221,7 @@ public class MegaferiaController implements Observable {
         notifyObservers();
         // --- E. Respuesta Exitosa ---
         return new ServiceResponse<>(ResponseCodes.SUCCESS, "Editorial " + name + " registrada exitosamente.", newPublisher);
-<<<<<<< Updated upstream
-    }
-    // ---------------------------------------------------------------------
-    // REGISTRO DE LIBROS
-    // ---------------------------------------------------------------------
 
-    /**
-     * Registra un libro aplicando validaciones comunes y construcción
-     * polimórfica según el tipo especificado.
-     */
-    public ServiceResponse<Book> registerBook(
-            String title, String authorIdsString, String isbn, String genre,
-            String valueString, String publisherNit, String bookType,
-            String pagesString, String copiesString, String hyperlink,
-            String durationString, String narratorIdString) {
-        // --- A. Validaciones Iniciales Comunes ---
-        if (title.isEmpty() || authorIdsString.isEmpty() || isbn.isEmpty() || genre.isEmpty() || valueString.isEmpty() || publisherNit.isEmpty()) {
-            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Los campos principales (Título, Autores, ISBN, Género, Valor, Editorial) son obligatorios.");
-        }
-
-        // --- B. Conversión y Búsqueda de Objetos --
-        // 1. Valor (Value)
-        double value;
-        try {
-            value = Double.parseDouble(valueString);
-        } catch (NumberFormatException e) {
-            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Valor del libro debe ser un número válido.");
-        }
-
-        // 2. Editorial (Publisher)
-        Publisher publisher = storage.getPublishers().stream()
-                .filter(p -> p.getNit().equals(publisherNit))
-                .findFirst().orElse(null);
-
-        if (publisher == null) {
-            return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Editorial no encontrada. Por favor, regístrela primero.");
-        }
-
-        // 3. Autores (Authors)
-        ArrayList<Author> authors = new ArrayList<>();
-        String[] authorIds = authorIdsString.split("\\n"); // Separa IDs por nueva línea
-        if (authorIds.length == 0) {
-            return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Debe agregar al menos un autor.");
-        }
-
-        for (String id : authorIds) {
-            Author author = storage.getAuthors().stream()
-                    .filter(a -> Long.toString(a.getId()).equals(id.trim()))
-                    .findFirst().orElse(null);
-
-            if (author == null) {
-                return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Autor con ID: " + id.trim() + " no encontrado.");
-            }
-            authors.add(author);
-        }
-
-        // 4. Validación de Unicidad de ISBN
-        boolean isbnExists = storage.getBooks().stream()
-                .anyMatch(b -> b.getIsbn().equals(isbn));
-        if (isbnExists) {
-            return new ServiceResponse<>(ResponseCodes.ALREADY_EXISTS, "Ya existe un libro registrado con el ISBN: " + isbn);
-        }
-
-        // --- C. Creación Polimórfica (Switch por Tipo de Libro) ---
-        Book newBook = null;
-
-        switch (bookType) {
-            case "IMPRESO":
-                int pages,
-                 copies;
-                try {
-                    pages = Integer.parseInt(pagesString);
-                    copies = Integer.parseInt(copiesString);
-                } catch (NumberFormatException e) {
-                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Páginas y Copias deben ser números enteros.");
-                }
-                newBook = new PrintedBook(title, authors, isbn, genre, bookType, value, publisher, pages, copies);
-                break;
-
-            case "DIGITAL":
-                if (hyperlink.isEmpty()) {
-                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El Hipervínculo es obligatorio para Libros Digitales.");
-                }
-                newBook = new DigitalBook(title, authors, isbn, genre, bookType, value, publisher, hyperlink);
-                break;
-
-            case "AUDIO":
-                int duration;
-                try {
-                    duration = Integer.parseInt(durationString);
-                } catch (NumberFormatException e) {
-                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "La Duración debe ser un número entero (minutos).");
-                }
-
-                // Buscar Narrador
-                Narrator narrator = null;
-                try {
-                    long narratorId = Long.parseLong(narratorIdString);
-                    narrator = storage.getNarrators().stream()
-                            .filter(n -> n.getId() == narratorId)
-                            .findFirst().orElse(null);
-                } catch (NumberFormatException e) {
-                    return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "El ID del Narrador no es válido.");
-                }
-
-                if (narrator == null) {
-                    return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "Narrador no encontrado. Por favor, regístrelo primero.");
-                }
-
-                newBook = new Audiobook(title, authors, isbn, genre, bookType, value, publisher, duration, narrator);
-                break;
-
-            default:
-                return new ServiceResponse<>(ResponseCodes.INVALID_ARGUMENT, "Tipo de libro no válido.");
-        }
-
-        // --- D. Persistencia y Respuesta Final ---
-        storage.getBooks().add(newBook);
-        return new ServiceResponse<>(ResponseCodes.SUCCESS, "Libro '" + title + "' registrado exitosamente como " + bookType + ".", newBook);
-    }
-
-=======
         }
     
     
@@ -445,7 +324,7 @@ public class MegaferiaController implements Observable {
     return new ServiceResponse<>(ResponseCodes.SUCCESS, "Libro registrado exitosamente.", newBook);
 }    
     
->>>>>>> Stashed changes
+
     // Búsqueda de libros por autor
     public ServiceResponse<List<Book>> searchBooksByAuthor(String authorIdString) {
         if (authorIdString == null || authorIdString.isEmpty()) {
@@ -566,29 +445,7 @@ public class MegaferiaController implements Observable {
         );
     }
 
-<<<<<<< Updated upstream
-    public ServiceResponse<List<Author>> searchAuthorsByPublisherDiversity() {
-        // 1. Validación de vacío
-        if (storage.getBooks().isEmpty()) {
-            return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "No hay libros registrados para realizar el análisis.");
-        }
-        //1. Aplanar el stream: transformar cada Libro en un stream de parejas (Autor, Editorial).
-        // Si un libro tiene 3 autores, genera 3 parejas (Autor1, Editorial), (Autor2, Editorial), (Autor3, Editorial).
-        Map<Author, Integer> authorDiversityMap = storage.getBooks().stream()
-                .flatMap(book -> book.getAuthors().stream()
-                .map(author -> new AbstractMap.SimpleEntry<>(author, book.getPublisher())))
-                .collect(Collectors.groupingBy(
-                        // 2. Agrupar por el Autor (la Key de la pareja)
-                        Map.Entry::getKey,
-                        // 3. Definir cómo se van a agregar los valores (las Editoriales) de ese grupo
-                        Collectors.mapping(
-                            Map.Entry::getValue,
-                            // 4. Recolectar las Editoriales en un SET (para obtener solo las únicas)
-                            // y luego obtener el tamaño del Set (cantidad de editoriales distintas).
-                            Collectors.collectingAndThen(Collectors.toSet(), Set::size)
-                        )
-                ));
-=======
+
     public ServiceResponse<Map<Author, Long>> searchAuthorsByPublisherDiversity() {
         
         Map<Author, Long> authorDiversityMap = storage.getBooks().stream()
@@ -601,35 +458,12 @@ public class MegaferiaController implements Observable {
                 ))
             )).entrySet().stream()
             .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().longValue()));
->>>>>>> Stashed changes
+
 
         if (authorDiversityMap.isEmpty()) {
             return new ServiceResponse<>(ResponseCodes.NOT_FOUND, "No se pudo calcular la diversidad.");
         }
 
-<<<<<<< Updated upstream
-        // 3. Encontrar el valor máximo de diversidad
-        int maxDiversity = authorDiversityMap.values().stream()
-                .max(Integer::compare)
-                .orElse(0);
-
-        if (maxDiversity == 0) {
-            return new ServiceResponse<>(ResponseCodes.SUCCESS, "Los autores no tienen editoriales asignadas.", new ArrayList<>());
-        }
-
-        // 4. Filtrar autores empatados y ORDENAR POR ID 
-        List<Author> topAuthors = authorDiversityMap.entrySet().stream()
-                .filter(entry -> entry.getValue() == maxDiversity)
-                .map(Map.Entry::getKey)
-                .sorted((a1, a2) -> Long.compare(a1.getId(), a2.getId())) 
-                .collect(Collectors.toList());
-
-        return new ServiceResponse<>(ResponseCodes.SUCCESS,
-                topAuthors.size() + " autores publican en " + maxDiversity + " editoriales diferentes.",
-                topAuthors
-        );
-    }
-=======
         // Encuentra el máximo de diversidad
         long maxDiversity = authorDiversityMap.values().stream()
             .max(Long::compare)
@@ -649,7 +483,7 @@ public class MegaferiaController implements Observable {
             topAuthorsMap 
         );
     }   
->>>>>>> Stashed changes
+
 
     //getters 
     public List<Author> getAuthors() {
